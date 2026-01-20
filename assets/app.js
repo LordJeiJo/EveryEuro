@@ -73,6 +73,8 @@ pills.forEach((pill) => {
 
 const dialog = document.getElementById('categoryDialog');
 const closeButton = document.getElementById('closeCategory');
+const accountDialog = document.getElementById('accountDialog');
+const closeAccount = document.getElementById('closeAccount');
 const copyBudgets = document.getElementById('copyBudgets');
 
 document.querySelectorAll('[data-edit]').forEach((button) => {
@@ -90,6 +92,20 @@ document.querySelectorAll('[data-edit]').forEach((button) => {
 });
 
 closeButton?.addEventListener('click', () => dialog?.close());
+
+document.querySelectorAll('[data-edit-account]').forEach((button) => {
+    button.addEventListener('click', () => {
+        if (!accountDialog) return;
+        const data = JSON.parse(button.getAttribute('data-edit-account'));
+        document.getElementById('accountId').value = data.id;
+        document.getElementById('accountNombre').value = data.nombre;
+        document.getElementById('accountOrden').value = data.orden;
+        document.getElementById('accountActiva').checked = data.activa === 1;
+        accountDialog.showModal();
+    });
+});
+
+closeAccount?.addEventListener('click', () => accountDialog?.close());
 
 copyBudgets?.addEventListener('click', (event) => {
     const form = event.currentTarget.closest('form');
