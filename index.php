@@ -10,9 +10,9 @@ $pdo = db($config);
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 
-function redirect_with_message(string $message, string $location = '/index.php'): void {
+function redirect_with_message(string $message, string $location = 'index.php'): void {
     $_SESSION['flash'] = $message;
-    header('Location: ' . $location);
+    header('Location: ' . app_url($location));
     exit;
 }
 
@@ -24,12 +24,12 @@ if ($action === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user'] = $user;
         redirect_with_message('Bienvenido.');
     }
-    redirect_with_message('Credenciales inválidas.', '/index.php?page=login');
+    redirect_with_message('Credenciales inválidas.', 'index.php?page=login');
 }
 
 if ($action === 'logout') {
     session_destroy();
-    header('Location: /index.php?page=login');
+    header('Location: ' . app_url('index.php?page=login'));
     exit;
 }
 
@@ -49,12 +49,12 @@ if ($action === 'add_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $mes = month_from_date($fecha);
 
     if ($descripcion === '' || $categoria === '') {
-        redirect_with_message('Completa descripción y categoría.', '/index.php');
+        redirect_with_message('Completa descripción y categoría.', 'index.php');
     }
 
     $stmt = $pdo->prepare('INSERT INTO movements (fecha, descripcion, importe, categoria, notas, estado, mes, cuenta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([$fecha, $descripcion, $importe, $categoria, $notas, $estado, $mes, $cuenta]);
-    redirect_with_message('Movimiento añadido.', '/index.php?month=' . urlencode($mes));
+    redirect_with_message('Movimiento añadido.', 'index.php?month=' . urlencode($mes));
 }
 
 if ($action === 'delete_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -62,7 +62,7 @@ if ($action === 'delete_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['id'] ?? 0);
     $stmt = $pdo->prepare('DELETE FROM movements WHERE id = ?');
     $stmt->execute([$id]);
-    redirect_with_message('Movimiento eliminado.', '/index.php');
+    redirect_with_message('Movimiento eliminado.', 'index.php');
 }
 
 if ($action === 'update_status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -71,7 +71,7 @@ if ($action === 'update_status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $estado = $_POST['estado'] === 'revisado' ? 'revisado' : 'pendiente';
     $stmt = $pdo->prepare('UPDATE movements SET estado = ? WHERE id = ?');
     $stmt->execute([$estado, $id]);
-    redirect_with_message('Estado actualizado.', '/index.php');
+    redirect_with_message('Estado actualizado.', 'index.php');
 }
 
 if ($action === 'quick_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -82,7 +82,7 @@ if ($action === 'quick_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare('UPDATE movements SET categoria = ? WHERE id = ?');
         $stmt->execute([$categoria, $id]);
     }
-    redirect_with_message('Categoría actualizada.', '/index.php');
+    redirect_with_message('Categoría actualizada.', 'index.php');
 }
 
 if ($action === 'save_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -99,7 +99,7 @@ if ($action === 'save_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $stmt = $pdo->prepare('UPDATE movements SET fecha = ?, descripcion = ?, importe = ?, categoria = ?, notas = ?, estado = ?, mes = ?, cuenta = ? WHERE id = ?');
     $stmt->execute([$fecha, $descripcion, $importe, $categoria, $notas, $estado, $mes, $cuenta, $id]);
-    redirect_with_message('Movimiento actualizado.', '/index.php?month=' . urlencode($mes));
+    redirect_with_message('Movimiento actualizado.', 'index.php?month=' . urlencode($mes));
 }
 
 if ($action === 'save_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -111,18 +111,18 @@ if ($action === 'save_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $activa = isset($_POST['activa']) ? 1 : 0;
 
     if ($nombre === '') {
-        redirect_with_message('Nombre requerido.', '/index.php?page=categories');
+        redirect_with_message('Nombre requerido.', 'index.php?page=categories');
     }
 
     if ($id > 0) {
         $stmt = $pdo->prepare('UPDATE categories SET nombre = ?, tipo = ?, orden = ?, activa = ? WHERE id = ?');
         $stmt->execute([$nombre, $tipo, $orden, $activa, $id]);
-        redirect_with_message('Categoría actualizada.', '/index.php?page=categories');
+        redirect_with_message('Categoría actualizada.', 'index.php?page=categories');
     }
 
     $stmt = $pdo->prepare('INSERT INTO categories (nombre, tipo, orden, activa) VALUES (?, ?, ?, ?)');
     $stmt->execute([$nombre, $tipo, $orden, $activa]);
-    redirect_with_message('Categoría creada.', '/index.php?page=categories');
+    redirect_with_message('Categoría creada.', 'index.php?page=categories');
 }
 
 if ($action === 'delete_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -130,7 +130,7 @@ if ($action === 'delete_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['id'] ?? 0);
     $stmt = $pdo->prepare('DELETE FROM categories WHERE id = ?');
     $stmt->execute([$id]);
-    redirect_with_message('Categoría eliminada.', '/index.php?page=categories');
+    redirect_with_message('Categoría eliminada.', 'index.php?page=categories');
 }
 
 if ($action === 'export_backup') {
@@ -151,15 +151,15 @@ if ($action === 'export_backup') {
 if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     if (!isset($_POST['confirm_import'])) {
-        redirect_with_message('Debes confirmar la importación.', '/index.php?page=backup');
+        redirect_with_message('Debes confirmar la importación.', 'index.php?page=backup');
     }
     if (!isset($_FILES['backup']) || $_FILES['backup']['error'] !== UPLOAD_ERR_OK) {
-        redirect_with_message('Archivo inválido.', '/index.php?page=backup');
+        redirect_with_message('Archivo inválido.', 'index.php?page=backup');
     }
     $json = file_get_contents($_FILES['backup']['tmp_name']);
     $payload = json_decode($json, true);
     if (!is_array($payload)) {
-        redirect_with_message('JSON inválido.', '/index.php?page=backup');
+        redirect_with_message('JSON inválido.', 'index.php?page=backup');
     }
     $pdo->beginTransaction();
     try {
@@ -203,9 +203,9 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
-        redirect_with_message('Error al importar.', '/index.php?page=backup');
+        redirect_with_message('Error al importar.', 'index.php?page=backup');
     }
-    redirect_with_message('Backup importado.', '/index.php?page=backup');
+    redirect_with_message('Backup importado.', 'index.php?page=backup');
 }
 
 $categories = $pdo->query('SELECT * FROM categories ORDER BY orden, nombre')->fetchAll();
@@ -251,7 +251,7 @@ $balance = $ingresos + $gastos;
 
 function current_url(array $override = []): string {
     $params = array_merge($_GET, $override);
-    return '/index.php?' . http_build_query($params);
+    return app_url('index.php?' . http_build_query($params));
 }
 
 ?><!doctype html>
@@ -260,7 +260,7 @@ function current_url(array $override = []): string {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>EveryEuro</title>
-    <link rel="stylesheet" href="/assets/styles.css">
+    <link rel="stylesheet" href="<?= h(app_url('assets/styles.css')) ?>">
 </head>
 <body>
 <div class="app" data-theme="light">
@@ -274,11 +274,11 @@ function current_url(array $override = []): string {
         </div>
         <?php if (is_logged_in()): ?>
         <nav class="nav">
-            <a href="/index.php" class="<?= $page === 'movements' ? 'active' : '' ?>">Movimientos</a>
-            <a href="/index.php?page=categories" class="<?= $page === 'categories' ? 'active' : '' ?>">Categorías</a>
-            <a href="/index.php?page=summary" class="<?= $page === 'summary' ? 'active' : '' ?>">Resumen</a>
-            <a href="/index.php?page=backup" class="<?= $page === 'backup' ? 'active' : '' ?>">Backup</a>
-            <a href="/index.php?action=logout">Salir</a>
+            <a href="<?= h(app_url('index.php')) ?>" class="<?= $page === 'movements' ? 'active' : '' ?>">Movimientos</a>
+            <a href="<?= h(app_url('index.php?page=categories')) ?>" class="<?= $page === 'categories' ? 'active' : '' ?>">Categorías</a>
+            <a href="<?= h(app_url('index.php?page=summary')) ?>" class="<?= $page === 'summary' ? 'active' : '' ?>">Resumen</a>
+            <a href="<?= h(app_url('index.php?page=backup')) ?>" class="<?= $page === 'backup' ? 'active' : '' ?>">Backup</a>
+            <a href="<?= h(app_url('index.php?action=logout')) ?>">Salir</a>
         </nav>
         <?php endif; ?>
         <button class="theme-toggle" type="button" id="themeToggle">Modo</button>
@@ -291,7 +291,7 @@ function current_url(array $override = []): string {
     <?php if ($page === 'login'): ?>
         <section class="panel login">
             <h2>Acceso</h2>
-            <form method="post" action="/index.php?action=login">
+            <form method="post" action="<?= h(app_url('index.php?action=login')) ?>">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <label>
                     Usuario
@@ -307,7 +307,7 @@ function current_url(array $override = []): string {
     <?php elseif ($page === 'categories'): ?>
         <section class="panel">
             <h2>Categorías</h2>
-            <form method="post" action="/index.php?action=save_category" class="inline-form">
+            <form method="post" action="<?= h(app_url('index.php?action=save_category')) ?>" class="inline-form">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="id" value="0">
                 <input type="text" name="nombre" placeholder="Nueva categoría" required>
@@ -344,7 +344,7 @@ function current_url(array $override = []): string {
                                 <td><?= $cat['activa'] ? 'Sí' : 'No' ?></td>
                                 <td>
                                     <button class="ghost" type="button" data-edit='<?= h(json_encode($cat)) ?>'>Editar</button>
-                                    <form method="post" action="/index.php?action=delete_category" class="inline">
+                                    <form method="post" action="<?= h(app_url('index.php?action=delete_category')) ?>" class="inline">
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int)$cat['id'] ?>">
                                         <button class="danger" type="submit">Eliminar</button>
@@ -356,7 +356,7 @@ function current_url(array $override = []): string {
                 </table>
             </div>
             <dialog id="categoryDialog">
-                <form method="post" action="/index.php?action=save_category" class="dialog-form">
+                <form method="post" action="<?= h(app_url('index.php?action=save_category')) ?>" class="dialog-form">
                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="id" id="catId" value="0">
                     <label>
@@ -390,7 +390,7 @@ function current_url(array $override = []): string {
     <?php elseif ($page === 'summary'): ?>
         <section class="panel">
             <h2>Resumen mensual</h2>
-            <form class="inline-form" method="get" action="/index.php">
+            <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
                 <input type="hidden" name="page" value="summary">
                 <input type="month" name="month" value="<?= h($month) ?>">
                 <button type="submit" class="ghost">Cambiar</button>
@@ -432,9 +432,9 @@ function current_url(array $override = []): string {
         <section class="panel">
             <h2>Backup</h2>
             <div class="backup-actions">
-                <a href="/index.php?action=export_backup" class="primary">Exportar backup</a>
+                <a href="<?= h(app_url('index.php?action=export_backup')) ?>" class="primary">Exportar backup</a>
             </div>
-            <form method="post" action="/index.php?action=import_backup" enctype="multipart/form-data" class="panel nested">
+            <form method="post" action="<?= h(app_url('index.php?action=import_backup')) ?>" enctype="multipart/form-data" class="panel nested">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <h3>Importar backup</h3>
                 <input type="file" name="backup" accept="application/json" required>
@@ -451,12 +451,12 @@ function current_url(array $override = []): string {
         $stmt->execute([$id]);
         $movement = $stmt->fetch();
         if (!$movement) {
-            redirect_with_message('Movimiento no encontrado.', '/index.php');
+            redirect_with_message('Movimiento no encontrado.', 'index.php');
         }
         ?>
         <section class="panel">
             <h2>Editar movimiento</h2>
-            <form method="post" action="/index.php?action=save_movement" class="form-grid">
+            <form method="post" action="<?= h(app_url('index.php?action=save_movement')) ?>" class="form-grid">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="id" value="<?= (int)$movement['id'] ?>">
                 <label>
@@ -497,7 +497,7 @@ function current_url(array $override = []): string {
                     <input type="text" name="cuenta" value="<?= h($movement['cuenta']) ?>">
                 </label>
                 <div class="actions full">
-                    <a href="/index.php" class="ghost">Cancelar</a>
+                    <a href="<?= h(app_url('index.php')) ?>" class="ghost">Cancelar</a>
                     <button type="submit" class="primary">Guardar</button>
                 </div>
             </form>
@@ -505,7 +505,7 @@ function current_url(array $override = []): string {
     <?php else: ?>
         <section class="panel">
             <h2>Añadir movimiento</h2>
-            <form method="post" action="/index.php?action=add_movement" class="form-grid">
+            <form method="post" action="<?= h(app_url('index.php?action=add_movement')) ?>" class="form-grid">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <label>
                     Fecha
@@ -556,7 +556,7 @@ function current_url(array $override = []): string {
         <section class="panel">
             <div class="panel-header">
                 <h2>Vista mensual</h2>
-                <form class="inline-form" method="get" action="/index.php">
+                <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
                     <input type="month" name="month" value="<?= h($month) ?>">
                     <select name="status">
                         <option value="all" <?= $filters['status'] === 'all' ? 'selected' : '' ?>>Todos</option>
@@ -599,7 +599,7 @@ function current_url(array $override = []): string {
                                 </td>
                                 <td class="amount <?= $move['importe'] >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount((float)$move['importe']) ?></td>
                                 <td>
-                                    <form method="post" action="/index.php?action=quick_category" class="inline">
+                                    <form method="post" action="<?= h(app_url('index.php?action=quick_category')) ?>" class="inline">
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int)$move['id'] ?>">
                                         <select name="categoria" onchange="this.form.submit()">
@@ -612,7 +612,7 @@ function current_url(array $override = []): string {
                                     </form>
                                 </td>
                                 <td>
-                                    <form method="post" action="/index.php?action=update_status" class="inline">
+                                    <form method="post" action="<?= h(app_url('index.php?action=update_status')) ?>" class="inline">
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int)$move['id'] ?>">
                                         <input type="hidden" name="estado" value="<?= $move['estado'] === 'pendiente' ? 'revisado' : 'pendiente' ?>">
@@ -620,8 +620,8 @@ function current_url(array $override = []): string {
                                     </form>
                                 </td>
                                 <td>
-                                    <a class="ghost" href="/index.php?page=edit_movement&id=<?= (int)$move['id'] ?>">Editar</a>
-                                    <form method="post" action="/index.php?action=delete_movement" class="inline">
+                                    <a class="ghost" href="<?= h(app_url('index.php?page=edit_movement&id=' . (int)$move['id'])) ?>">Editar</a>
+                                    <form method="post" action="<?= h(app_url('index.php?action=delete_movement')) ?>" class="inline">
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int)$move['id'] ?>">
                                         <button class="danger" type="submit">Eliminar</button>
@@ -635,6 +635,6 @@ function current_url(array $override = []): string {
         </section>
     <?php endif; ?>
 </div>
-<script src="/assets/app.js"></script>
+<script src="<?= h(app_url('assets/app.js')) ?>"></script>
 </body>
 </html>
