@@ -2,9 +2,15 @@ const themeToggle = document.getElementById('themeToggle');
 const storedTheme = localStorage.getItem('theme');
 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
+function updateToggleLabel(theme) {
+    if (!themeToggle) return;
+    themeToggle.textContent = theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
+}
+
 function applyTheme(theme) {
     document.querySelector('.app')?.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
+    updateToggleLabel(theme);
 }
 
 if (storedTheme) {
@@ -16,6 +22,39 @@ if (storedTheme) {
 themeToggle?.addEventListener('click', () => {
     const current = document.querySelector('.app')?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
     applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+const reviewButton = document.getElementById('reviewWeek');
+const reviewHint = document.getElementById('reviewHint');
+const movementRows = document.querySelectorAll('[data-movement]');
+let reviewActive = false;
+
+function applyReviewFilter() {
+    if (!movementRows.length) return;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 6);
+    movementRows.forEach((row) => {
+        const status = row.getAttribute('data-status');
+        const dateValue = row.getAttribute('data-date');
+        const date = dateValue ? new Date(`${dateValue}T00:00:00`) : null;
+        const isRecent = date ? date >= cutoff : false;
+        const shouldShow = !reviewActive || (status === 'pendiente' && isRecent);
+        row.style.display = shouldShow ? '' : 'none';
+    });
+    if (reviewHint) {
+        reviewHint.textContent = reviewActive
+            ? 'Mostrando pendientes de los últimos 7 días.'
+            : 'Pendientes destacados, revisados en gris.';
+    }
+    if (reviewButton) {
+        reviewButton.classList.toggle('active', reviewActive);
+        reviewButton.textContent = reviewActive ? 'Salir de revisión' : 'Revisar semana';
+    }
+}
+
+reviewButton?.addEventListener('click', () => {
+    reviewActive = !reviewActive;
+    applyReviewFilter();
 });
 
 const categorySelect = document.getElementById('categorySelect');
