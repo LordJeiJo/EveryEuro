@@ -182,6 +182,31 @@ h1 {
   font-weight: 600;
 }
 
+.amount-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: right;
+  font: inherit;
+  color: inherit;
+  padding: 2px 4px;
+  border-radius: 8px;
+}
+
+.amount-input:focus {
+  outline: none;
+  border-color: rgba(108, 92, 231, 0.4);
+  background: white;
+  box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.12);
+}
+
+.expense-card .amount-input {
+  max-width: 120px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--text);
+}
+
 .positive {
   color: var(--secondary);
 }
