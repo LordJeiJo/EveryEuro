@@ -67,6 +67,13 @@ function db(array $config): PDO {
     return $pdo;
 }
 
+function column_exists(PDO $pdo, string $table, string $column): bool {
+    $stmt = $pdo->prepare('PRAGMA table_info(' . $table . ')');
+    $stmt->execute();
+    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN, 1);
+    return in_array($column, $columns, true);
+}
+
 function init_db(array $config): void {
     $pdo = db($config);
     $pdo->exec('CREATE TABLE IF NOT EXISTS movements (
@@ -85,7 +92,8 @@ function init_db(array $config): void {
         nombre TEXT NOT NULL,
         tipo TEXT NOT NULL,
         orden INTEGER NOT NULL DEFAULT 0,
-        activa INTEGER NOT NULL DEFAULT 1
+        activa INTEGER NOT NULL DEFAULT 1,
+        is_favorite INTEGER NOT NULL DEFAULT 0
     )');
     $pdo->exec('CREATE TABLE IF NOT EXISTS rules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,6 +102,18 @@ function init_db(array $config): void {
         prioridad INTEGER NOT NULL DEFAULT 0,
         tipo TEXT NOT NULL
     )');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS budgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        month TEXT NOT NULL,
+        category_id INTEGER NOT NULL,
+        planned_amount REAL NOT NULL DEFAULT 0,
+        notes TEXT
+    )');
+    $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS budgets_month_category ON budgets (month, category_id)');
+
+    if (!column_exists($pdo, 'categories', 'is_favorite')) {
+        $pdo->exec('ALTER TABLE categories ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
+    }
 
     $count = (int)$pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn();
     if ($count === 0) {
