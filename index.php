@@ -66,13 +66,13 @@ if ($action === 'add_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $estado = 'pendiente';
     $mes = month_from_date($fecha);
 
-    if ($descripcion === '' || $categoria === '') {
-        redirect_with_message('Completa descripción y categoría.', 'index.php');
+    if ($descripcion === '' || $categoria === '' || $cuenta === '') {
+        redirect_with_message('Añade descripción, categoría y cuenta para continuar.', 'index.php');
     }
 
     $stmt = $pdo->prepare('INSERT INTO movements (fecha, descripcion, importe, categoria, notas, estado, mes, cuenta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([$fecha, $descripcion, $importe, $categoria, $notas, $estado, $mes, $cuenta]);
-    redirect_with_message('Movimiento guardado.', 'index.php?month=' . urlencode($mes));
+    redirect_with_message('Apuntado. ¡Listo!', 'index.php?month=' . urlencode($mes));
 }
 
 if ($action === 'delete_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -80,7 +80,7 @@ if ($action === 'delete_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['id'] ?? 0);
     $stmt = $pdo->prepare('DELETE FROM movements WHERE id = ?');
     $stmt->execute([$id]);
-    redirect_with_message('Movimiento borrado.', 'index.php');
+    redirect_with_message('Movimiento eliminado.', 'index.php');
 }
 
 if ($action === 'update_status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -89,7 +89,7 @@ if ($action === 'update_status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $estado = $_POST['estado'] === 'revisado' ? 'revisado' : 'pendiente';
     $stmt = $pdo->prepare('UPDATE movements SET estado = ? WHERE id = ?');
     $stmt->execute([$estado, $id]);
-    redirect_with_message('Estado actualizado.', 'index.php');
+    redirect_with_message('Estado actualizado. ✔️', 'index.php');
 }
 
 if ($action === 'quick_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -100,7 +100,7 @@ if ($action === 'quick_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare('UPDATE movements SET categoria = ? WHERE id = ?');
         $stmt->execute([$categoria, $id]);
     }
-    redirect_with_message('Categoría actualizada.', 'index.php');
+    redirect_with_message('Categoría al día.', 'index.php');
 }
 
 if ($action === 'save_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -136,12 +136,34 @@ if ($action === 'save_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($id > 0) {
         $stmt = $pdo->prepare('UPDATE categories SET nombre = ?, tipo = ?, orden = ?, activa = ?, is_favorite = ? WHERE id = ?');
         $stmt->execute([$nombre, $tipo, $orden, $activa, $isFavorite, $id]);
-        redirect_with_message('Categoría actualizada.', 'index.php?page=categories');
+        redirect_with_message('Categoría actualizada. ✔️', 'index.php?page=categories');
     }
 
     $stmt = $pdo->prepare('INSERT INTO categories (nombre, tipo, orden, activa, is_favorite) VALUES (?, ?, ?, ?, ?)');
     $stmt->execute([$nombre, $tipo, $orden, $activa, $isFavorite]);
-    redirect_with_message('Categoría creada.', 'index.php?page=categories');
+    redirect_with_message('Categoría creada. ✨', 'index.php?page=categories');
+}
+
+if ($action === 'save_account' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    $nombre = trim($_POST['nombre'] ?? '');
+    $orden = (int)($_POST['orden'] ?? 0);
+    $activa = isset($_POST['activa']) ? 1 : 0;
+
+    if ($nombre === '') {
+        redirect_with_message('Necesito un nombre para la cuenta.', 'index.php?page=accounts');
+    }
+
+    if ($id > 0) {
+        $stmt = $pdo->prepare('UPDATE accounts SET nombre = ?, orden = ?, activa = ? WHERE id = ?');
+        $stmt->execute([$nombre, $orden, $activa, $id]);
+        redirect_with_message('Cuenta actualizada. ✔️', 'index.php?page=accounts');
+    }
+
+    $stmt = $pdo->prepare('INSERT INTO accounts (nombre, orden, activa) VALUES (?, ?, ?)');
+    $stmt->execute([$nombre, $orden, $activa]);
+    redirect_with_message('Cuenta creada. ✨', 'index.php?page=accounts');
 }
 
 if ($action === 'save_budgets' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -166,7 +188,7 @@ if ($action === 'save_budgets' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         save_budget($pdo, $monthValue, (int)$categoryId, null, (string)$note);
     }
 
-    redirect_with_message('Presupuestos guardados.', 'index.php?page=budget&month=' . urlencode($monthValue));
+    redirect_with_message('Presupuestos listos.', 'index.php?page=budget&month=' . urlencode($monthValue));
 }
 
 if ($action === 'copy_budgets' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -198,7 +220,7 @@ if ($action === 'copy_budgets' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $insert->execute([$monthValue, $row['category_id'], $row['planned_amount'], $row['notes']]);
     }
 
-    redirect_with_message('Presupuestos copiados del mes anterior.', 'index.php?page=budget&month=' . urlencode($monthValue));
+    redirect_with_message('Presupuestos copiados. ✔️', 'index.php?page=budget&month=' . urlencode($monthValue));
 }
 
 if ($action === 'delete_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -209,12 +231,21 @@ if ($action === 'delete_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect_with_message('Categoría eliminada.', 'index.php?page=categories');
 }
 
+if ($action === 'delete_account' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    $stmt = $pdo->prepare('DELETE FROM accounts WHERE id = ?');
+    $stmt->execute([$id]);
+    redirect_with_message('Cuenta eliminada.', 'index.php?page=accounts');
+}
+
 if ($action === 'export_backup') {
     $data = [
         'schema_version' => $config['schema_version'],
         'exported_at' => date('c'),
         'movements' => $pdo->query('SELECT * FROM movements')->fetchAll(),
         'categories' => $pdo->query('SELECT * FROM categories')->fetchAll(),
+        'accounts' => $pdo->query('SELECT * FROM accounts')->fetchAll(),
         'rules' => $pdo->query('SELECT * FROM rules')->fetchAll(),
         'budgets' => $pdo->query('SELECT * FROM budgets')->fetchAll(),
     ];
@@ -242,6 +273,7 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $pdo->exec('DELETE FROM movements');
         $pdo->exec('DELETE FROM categories');
+        $pdo->exec('DELETE FROM accounts');
         $pdo->exec('DELETE FROM rules');
         $pdo->exec('DELETE FROM budgets');
         $insertMove = $pdo->prepare('INSERT INTO movements (id, fecha, descripcion, importe, categoria, notas, estado, mes, cuenta) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -267,6 +299,15 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['orden'],
                 $row['activa'],
                 $row['is_favorite'] ?? 0,
+            ]);
+        }
+        $insertAccount = $pdo->prepare('INSERT INTO accounts (id, nombre, orden, activa) VALUES (?, ?, ?, ?)');
+        foreach ($payload['accounts'] ?? [] as $row) {
+            $insertAccount->execute([
+                $row['id'],
+                $row['nombre'],
+                $row['orden'],
+                $row['activa'],
             ]);
         }
         $insertRule = $pdo->prepare('INSERT INTO rules (id, patron, categoria, prioridad, tipo) VALUES (?, ?, ?, ?, ?)');
@@ -299,6 +340,10 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $categories = $pdo->query('SELECT * FROM categories ORDER BY orden, nombre')->fetchAll();
 $fav_categories = $pdo->query('SELECT * FROM categories WHERE is_favorite = 1 AND activa = 1 ORDER BY orden, nombre')->fetchAll();
+$accounts = $pdo->query('SELECT * FROM accounts ORDER BY orden, nombre')->fetchAll();
+$activeAccounts = array_values(array_filter($accounts, static function (array $account): bool {
+    return (int)$account['activa'] === 1;
+}));
 $categoriesById = [];
 foreach ($categories as $cat) {
     $categoriesById[(int)$cat['id']] = $cat;
@@ -308,6 +353,7 @@ $month = $_GET['month'] ?? date('Y-m');
 $filters = [
     'status' => $_GET['status'] ?? 'all',
     'category' => $_GET['category'] ?? 'all',
+    'account' => $_GET['account'] ?? 'all',
     'search' => trim($_GET['search'] ?? ''),
 ];
 
@@ -320,6 +366,10 @@ if ($filters['status'] === 'pendiente' || $filters['status'] === 'revisado') {
 if ($filters['category'] !== 'all' && $filters['category'] !== '') {
     $where[] = 'categoria = ?';
     $params[] = $filters['category'];
+}
+if ($filters['account'] !== 'all' && $filters['account'] !== '') {
+    $where[] = 'cuenta = ?';
+    $params[] = $filters['account'];
 }
 if ($filters['search'] !== '') {
     $where[] = '(descripcion LIKE ? OR notas LIKE ? OR cuenta LIKE ?)';
@@ -409,6 +459,7 @@ function current_url(array $override = []): string {
         <nav class="nav">
             <a href="<?= h(app_url('index.php')) ?>" class="<?= $page === 'movements' ? 'active' : '' ?>">Tus gastos</a>
             <a href="<?= h(app_url('index.php?page=categories')) ?>" class="<?= $page === 'categories' ? 'active' : '' ?>">Tus categorías</a>
+            <a href="<?= h(app_url('index.php?page=accounts')) ?>" class="<?= $page === 'accounts' ? 'active' : '' ?>">Cuentas</a>
             <a href="<?= h(app_url('index.php?page=budget')) ?>" class="<?= $page === 'budget' ? 'active' : '' ?>">Presupuesto</a>
             <a href="<?= h(app_url('index.php?page=summary')) ?>" class="<?= $page === 'summary' ? 'active' : '' ?>">Cómo vas este mes</a>
             <a href="<?= h(app_url('index.php?page=backup')) ?>" class="<?= $page === 'backup' ? 'active' : '' ?>">Copia de seguridad</a>
@@ -532,6 +583,73 @@ function current_url(array $override = []): string {
                 </form>
             </dialog>
         </section>
+    <?php elseif ($page === 'accounts'): ?>
+        <section class="panel">
+            <h2>Tus cuentas</h2>
+            <p class="muted">Agrupa movimientos por cuenta para filtrar al instante.</p>
+            <form method="post" action="<?= h(app_url('index.php?action=save_account')) ?>" class="inline-form">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="id" value="0">
+                <input type="text" name="nombre" placeholder="Ej: Tarjeta" required>
+                <input type="number" name="orden" value="0" min="0">
+                <label class="switch">
+                    <input type="checkbox" name="activa" checked>
+                    <span>Visible</span>
+                </label>
+                <button type="submit" class="primary">Añadir</button>
+            </form>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Orden</th>
+                            <th>Visible</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($accounts as $account): ?>
+                            <tr>
+                                <td><?= h($account['nombre']) ?></td>
+                                <td><?= h((string)$account['orden']) ?></td>
+                                <td><?= $account['activa'] ? 'Sí' : 'No' ?></td>
+                                <td>
+                                    <button class="ghost" type="button" data-edit-account='<?= h(json_encode($account)) ?>'>Editar</button>
+                                    <form method="post" action="<?= h(app_url('index.php?action=delete_account')) ?>" class="inline">
+                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                        <input type="hidden" name="id" value="<?= (int)$account['id'] ?>">
+                                        <button class="danger" type="submit">Eliminar</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <dialog id="accountDialog">
+                <form method="post" action="<?= h(app_url('index.php?action=save_account')) ?>" class="dialog-form">
+                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="id" id="accountId" value="0">
+                    <label>
+                        Nombre
+                        <input type="text" name="nombre" id="accountNombre" required>
+                    </label>
+                    <label>
+                        Orden
+                        <input type="number" name="orden" id="accountOrden" min="0">
+                    </label>
+                    <label class="switch">
+                        <input type="checkbox" name="activa" id="accountActiva">
+                        <span>Visible</span>
+                    </label>
+                    <menu>
+                        <button type="button" class="ghost" id="closeAccount">Cancelar</button>
+                        <button type="submit" class="primary">Guardar</button>
+                    </menu>
+                </form>
+            </dialog>
+        </section>
     <?php elseif ($page === 'summary'): ?>
         <section class="panel">
             <div class="panel-header">
@@ -579,6 +697,7 @@ function current_url(array $override = []): string {
                             <th>Presupuestado</th>
                             <th>Real</th>
                             <th>Diferencia</th>
+                            <th>Progreso</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -586,6 +705,10 @@ function current_url(array $override = []): string {
                             $budget = $budgetsByCategory[(int)$row['id']]['planned_amount'] ?? null;
                             $actual = $row['tipo'] === 'ingreso' ? (float)$row['ingresos'] : abs((float)$row['gastos']);
                             $diff = $budget !== null ? $actual - (float)$budget : null;
+                            $progress = $budget !== null && (float)$budget > 0
+                                ? min(100, ($actual / (float)$budget) * 100)
+                                : null;
+                            $isOverBudget = $budget !== null && (float)$budget > 0 && $actual > (float)$budget;
                             ?>
                             <tr>
                                 <td><?= h($row['nombre']) ?></td>
@@ -593,6 +716,18 @@ function current_url(array $override = []): string {
                                 <td>€ <?= format_amount($actual) ?></td>
                                 <td class="<?= $diff === null ? '' : ($diff >= 0 ? 'positive' : 'negative') ?>">
                                     <?= $diff !== null ? '€ ' . format_amount($diff) : '-' ?>
+                                </td>
+                                <td>
+                                    <?php if ($progress === null): ?>
+                                        —
+                                    <?php else: ?>
+                                        <div class="progress">
+                                            <div class="progress-bar <?= $isOverBudget ? 'over' : '' ?>">
+                                                <span style="width: <?= (int)$progress ?>%"></span>
+                                            </div>
+                                            <small class="muted"><?= (int)$progress ?>%</small>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -732,20 +867,27 @@ function current_url(array $override = []): string {
                     </select>
                 </label>
                 <label>
+                    Cuenta
+                    <select name="cuenta">
+                        <option value="">Sin cuenta</option>
+                        <?php foreach ($accounts as $account): ?>
+                            <option value="<?= h($account['nombre']) ?>" <?= $account['nombre'] === $movement['cuenta'] ? 'selected' : '' ?>>
+                                <?= h($account['nombre']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label>
                     Estado
                     <select name="estado">
                         <option value="pendiente" <?= $movement['estado'] === 'pendiente' ? 'selected' : '' ?>>Pendiente</option>
                         <option value="revisado" <?= $movement['estado'] === 'revisado' ? 'selected' : '' ?>>Revisado</option>
                     </select>
                 </label>
-                <label class="full">
-                    Notas
-                    <textarea name="notas" rows="3"><?= h($movement['notas']) ?></textarea>
-                </label>
-                <label class="full">
-                    Cuenta
-                    <input type="text" name="cuenta" value="<?= h($movement['cuenta']) ?>">
-                </label>
+                <details class="optional-details full">
+                    <summary>Notas opcionales</summary>
+                    <textarea name="notas" rows="3" placeholder="Añade contexto si lo necesitas"><?= h($movement['notas']) ?></textarea>
+                </details>
                 <div class="actions full">
                     <a href="<?= h(app_url('index.php')) ?>" class="ghost">Cancelar</a>
                     <button type="submit" class="primary">Guardar</button>
@@ -756,24 +898,20 @@ function current_url(array $override = []): string {
         <section class="panel quick-entry">
             <div class="panel-header">
                 <div>
-                    <h2>Apunta un gasto rápido</h2>
-                    <p class="muted">Fecha, importe, descripción y listo en 5 segundos.</p>
+                    <h2>Captura rápida</h2>
+                    <p class="muted">Descripción, importe, categoría y listo. Lo demás es opcional.</p>
                 </div>
             </div>
             <form method="post" action="<?= h(app_url('index.php?action=add_movement')) ?>" class="quick-entry-form">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <div class="quick-entry-row">
                     <label>
-                        Fecha
-                        <input type="date" name="fecha" value="<?= h(date('Y-m-d')) ?>" required>
+                        Descripción
+                        <input type="text" name="descripcion" placeholder="Ej: Supermercado" required>
                     </label>
                     <label>
                         Importe
                         <input type="number" step="0.01" name="importe" placeholder="-24,90" required>
-                    </label>
-                    <label class="wide">
-                        Descripción
-                        <input type="text" name="descripcion" placeholder="Ej: Supermercado" required>
                     </label>
                     <label>
                         Categoría
@@ -785,7 +923,16 @@ function current_url(array $override = []): string {
                             <?php endforeach; ?>
                         </select>
                     </label>
-                    <button type="submit" class="primary">Guardar</button>
+                    <label>
+                        Cuenta
+                        <select name="cuenta" required>
+                            <option value="">Elige cuenta...</option>
+                            <?php foreach ($activeAccounts as $account): ?>
+                                <option value="<?= h($account['nombre']) ?>"><?= h($account['nombre']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                    <button type="submit" class="primary">Listo</button>
                 </div>
                 <div class="quick-favorites">
                     <span class="label">Favoritas (máx. 8)</span>
@@ -805,10 +952,10 @@ function current_url(array $override = []): string {
                     <summary>Detalles opcionales</summary>
                     <div class="quick-extra">
                         <label>
-                            Cuenta
-                            <input type="text" name="cuenta" placeholder="Cuenta opcional">
+                            Fecha
+                            <input type="date" name="fecha" value="<?= h(date('Y-m-d')) ?>" required>
                         </label>
-                        <label class="wide">
+                        <label>
                             Notas
                             <textarea name="notas" rows="2" placeholder="Notas opcionales"></textarea>
                         </label>
@@ -863,6 +1010,14 @@ function current_url(array $override = []): string {
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <select name="account">
+                            <option value="all">Todas cuentas</option>
+                            <?php foreach ($accounts as $account): ?>
+                                <option value="<?= h($account['nombre']) ?>" <?= $filters['account'] === $account['nombre'] ? 'selected' : '' ?>>
+                                    <?= h($account['nombre']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                         <input type="search" name="search" value="<?= h($filters['search']) ?>" placeholder="Buscar">
                         <button type="submit" class="ghost">Filtrar</button>
                     </form>
@@ -876,6 +1031,7 @@ function current_url(array $override = []): string {
                             <th>Descripción</th>
                             <th>Importe</th>
                             <th>Categoría</th>
+                            <th>Cuenta</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -883,6 +1039,7 @@ function current_url(array $override = []): string {
                     <tbody>
                         <?php foreach ($movements as $move): ?>
                             <?php $isPending = $move['estado'] === 'pendiente'; ?>
+                            <?php $amountValue = (float)$move['importe']; ?>
                             <tr class="movement-row <?= $isPending ? 'pending' : 'reviewed' ?>" data-movement data-status="<?= h($move['estado']) ?>" data-date="<?= h($move['fecha']) ?>">
                                 <td><?= h($move['fecha']) ?></td>
                                 <td>
@@ -891,7 +1048,7 @@ function current_url(array $override = []): string {
                                         <div class="muted"><?= h($move['notas']) ?></div>
                                     <?php endif; ?>
                                 </td>
-                                <td class="amount <?= $move['importe'] >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount((float)$move['importe']) ?></td>
+                                <td class="amount <?= $amountValue >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount(abs($amountValue)) ?></td>
                                 <td>
                                     <form method="post" action="<?= h(app_url('index.php?action=quick_category')) ?>" class="inline">
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
@@ -904,6 +1061,9 @@ function current_url(array $override = []): string {
                                             <?php endforeach; ?>
                                         </select>
                                     </form>
+                                </td>
+                                <td>
+                                    <span class="account-pill"><?= $move['cuenta'] !== '' ? h($move['cuenta']) : '—' ?></span>
                                 </td>
                                 <td>
                                     <form method="post" action="<?= h(app_url('index.php?action=update_status')) ?>" class="inline">

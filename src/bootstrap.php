@@ -87,6 +87,12 @@ function init_db(array $config): void {
         mes TEXT NOT NULL,
         cuenta TEXT
     )');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        orden INTEGER NOT NULL DEFAULT 0,
+        activa INTEGER NOT NULL DEFAULT 1
+    )');
     $pdo->exec('CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL,
@@ -137,6 +143,20 @@ function init_db(array $config): void {
             $stmt->execute([$row[0], $row[1], $idx]);
         }
     }
+
+    $accountCount = (int)$pdo->query('SELECT COUNT(*) FROM accounts')->fetchColumn();
+    if ($accountCount === 0) {
+        $accounts = [
+            'Habitual',
+            'Tarjeta',
+            'Efectivo',
+            'Ahorro',
+        ];
+        $stmt = $pdo->prepare('INSERT INTO accounts (nombre, orden, activa) VALUES (?, ?, 1)');
+        foreach ($accounts as $idx => $name) {
+            $stmt->execute([$name, $idx]);
+        }
+    }
 }
 
 function month_from_date(string $date): string {
@@ -144,6 +164,6 @@ function month_from_date(string $date): string {
 }
 
 function format_amount(float $amount): string {
-    $formatted = number_format($amount, 2, ',', '.');
+    $formatted = number_format(abs($amount), 2, ',', '.');
     return $amount < 0 ? "-{$formatted}" : $formatted;
 }
