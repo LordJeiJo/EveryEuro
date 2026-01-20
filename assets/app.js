@@ -34,6 +34,7 @@ pills.forEach((pill) => {
 
 const dialog = document.getElementById('categoryDialog');
 const closeButton = document.getElementById('closeCategory');
+const copyBudgets = document.getElementById('copyBudgets');
 
 document.querySelectorAll('[data-edit]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -44,8 +45,23 @@ document.querySelectorAll('[data-edit]').forEach((button) => {
         document.getElementById('catTipo').value = data.tipo;
         document.getElementById('catOrden').value = data.orden;
         document.getElementById('catActiva').checked = data.activa === 1;
+        document.getElementById('catFavorite').checked = data.is_favorite === 1;
         dialog.showModal();
     });
 });
 
 closeButton?.addEventListener('click', () => dialog?.close());
+
+copyBudgets?.addEventListener('click', (event) => {
+    const form = event.currentTarget.closest('form');
+    if (!form) return;
+    const hasExisting = form.dataset.hasExisting === '1';
+    if (hasExisting && !window.confirm('Ya existen presupuestos en este mes. ¿Sobrescribir?')) {
+        event.preventDefault();
+        return;
+    }
+    const confirmInput = form.querySelector('input[name="confirm_overwrite"]');
+    if (confirmInput && hasExisting) {
+        confirmInput.value = '1';
+    }
+});

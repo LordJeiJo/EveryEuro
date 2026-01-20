@@ -16,6 +16,24 @@ function redirect_with_message(string $message, string $location = 'index.php'):
     exit;
 }
 
+function save_budget(PDO $pdo, string $month, int $categoryId, ?string $plannedRaw, ?string $notesRaw): void {
+    $plannedRaw = $plannedRaw ?? '';
+    $notes = trim($notesRaw ?? '');
+    $plannedValue = trim($plannedRaw);
+    $plannedAmount = $plannedValue === '' ? null : (float)str_replace(',', '.', $plannedValue);
+
+    if ($plannedAmount === null && $notes === '') {
+        $stmt = $pdo->prepare('DELETE FROM budgets WHERE month = ? AND category_id = ?');
+        $stmt->execute([$month, $categoryId]);
+        return;
+    }
+
+    $plannedAmount = max(0, (float)($plannedAmount ?? 0));
+    $stmt = $pdo->prepare('INSERT INTO budgets (month, category_id, planned_amount, notes) VALUES (?, ?, ?, ?)
+        ON CONFLICT(month, category_id) DO UPDATE SET planned_amount = excluded.planned_amount, notes = excluded.notes');
+    $stmt->execute([$month, $categoryId, $plannedAmount, $notes]);
+}
+
 if ($action === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $user = trim($_POST['user'] ?? '');
@@ -109,20 +127,78 @@ if ($action === 'save_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $tipo = $_POST['tipo'] ?? 'gasto';
     $orden = (int)($_POST['orden'] ?? 0);
     $activa = isset($_POST['activa']) ? 1 : 0;
+    $isFavorite = isset($_POST['is_favorite']) ? 1 : 0;
 
     if ($nombre === '') {
         redirect_with_message('Nombre requerido.', 'index.php?page=categories');
     }
 
     if ($id > 0) {
-        $stmt = $pdo->prepare('UPDATE categories SET nombre = ?, tipo = ?, orden = ?, activa = ? WHERE id = ?');
-        $stmt->execute([$nombre, $tipo, $orden, $activa, $id]);
+        $stmt = $pdo->prepare('UPDATE categories SET nombre = ?, tipo = ?, orden = ?, activa = ?, is_favorite = ? WHERE id = ?');
+        $stmt->execute([$nombre, $tipo, $orden, $activa, $isFavorite, $id]);
         redirect_with_message('Categoría actualizada.', 'index.php?page=categories');
     }
 
-    $stmt = $pdo->prepare('INSERT INTO categories (nombre, tipo, orden, activa) VALUES (?, ?, ?, ?)');
-    $stmt->execute([$nombre, $tipo, $orden, $activa]);
+    $stmt = $pdo->prepare('INSERT INTO categories (nombre, tipo, orden, activa, is_favorite) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$nombre, $tipo, $orden, $activa, $isFavorite]);
     redirect_with_message('Categoría creada.', 'index.php?page=categories');
+}
+
+if ($action === 'save_budgets' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $monthValue = $_POST['month'] ?? date('Y-m');
+    $planned = $_POST['planned_amount'] ?? [];
+    $notes = $_POST['notes'] ?? [];
+    $singleId = (int)($_POST['save_single'] ?? 0);
+
+    if ($singleId > 0) {
+        save_budget($pdo, $monthValue, $singleId, $planned[$singleId] ?? null, $notes[$singleId] ?? null);
+        redirect_with_message('Presupuesto guardado.', 'index.php?page=budget&month=' . urlencode($monthValue));
+    }
+
+    foreach ($planned as $categoryId => $amount) {
+        save_budget($pdo, $monthValue, (int)$categoryId, (string)$amount, $notes[$categoryId] ?? null);
+    }
+    foreach ($notes as $categoryId => $note) {
+        if (isset($planned[$categoryId])) {
+            continue;
+        }
+        save_budget($pdo, $monthValue, (int)$categoryId, null, (string)$note);
+    }
+
+    redirect_with_message('Presupuestos guardados.', 'index.php?page=budget&month=' . urlencode($monthValue));
+}
+
+if ($action === 'copy_budgets' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $monthValue = $_POST['month'] ?? date('Y-m');
+    $confirmOverwrite = ($_POST['confirm_overwrite'] ?? '') === '1';
+
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM budgets WHERE month = ?');
+    $stmt->execute([$monthValue]);
+    $existingCount = (int)$stmt->fetchColumn();
+
+    if ($existingCount > 0 && !$confirmOverwrite) {
+        redirect_with_message('Confirma la sobrescritura para copiar el mes anterior.', 'index.php?page=budget&month=' . urlencode($monthValue));
+    }
+
+    $date = DateTime::createFromFormat('Y-m', $monthValue) ?: new DateTime();
+    $prevMonth = $date->modify('-1 month')->format('Y-m');
+
+    $stmt = $pdo->prepare('SELECT category_id, planned_amount, notes FROM budgets WHERE month = ?');
+    $stmt->execute([$prevMonth]);
+    $previous = $stmt->fetchAll();
+    if (!$previous) {
+        redirect_with_message('No hay presupuestos en el mes anterior.', 'index.php?page=budget&month=' . urlencode($monthValue));
+    }
+
+    $pdo->prepare('DELETE FROM budgets WHERE month = ?')->execute([$monthValue]);
+    $insert = $pdo->prepare('INSERT INTO budgets (month, category_id, planned_amount, notes) VALUES (?, ?, ?, ?)');
+    foreach ($previous as $row) {
+        $insert->execute([$monthValue, $row['category_id'], $row['planned_amount'], $row['notes']]);
+    }
+
+    redirect_with_message('Presupuestos copiados del mes anterior.', 'index.php?page=budget&month=' . urlencode($monthValue));
 }
 
 if ($action === 'delete_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -140,6 +216,7 @@ if ($action === 'export_backup') {
         'movements' => $pdo->query('SELECT * FROM movements')->fetchAll(),
         'categories' => $pdo->query('SELECT * FROM categories')->fetchAll(),
         'rules' => $pdo->query('SELECT * FROM rules')->fetchAll(),
+        'budgets' => $pdo->query('SELECT * FROM budgets')->fetchAll(),
     ];
     $filename = 'everyeuro-backup-' . date('Ymd-His') . '.json';
     header('Content-Type: application/json');
@@ -166,6 +243,7 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec('DELETE FROM movements');
         $pdo->exec('DELETE FROM categories');
         $pdo->exec('DELETE FROM rules');
+        $pdo->exec('DELETE FROM budgets');
         $insertMove = $pdo->prepare('INSERT INTO movements (id, fecha, descripcion, importe, categoria, notas, estado, mes, cuenta) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($payload['movements'] ?? [] as $row) {
             $insertMove->execute([
@@ -180,7 +258,7 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['cuenta'] ?? '',
             ]);
         }
-        $insertCat = $pdo->prepare('INSERT INTO categories (id, nombre, tipo, orden, activa) VALUES (?, ?, ?, ?, ?)');
+        $insertCat = $pdo->prepare('INSERT INTO categories (id, nombre, tipo, orden, activa, is_favorite) VALUES (?, ?, ?, ?, ?, ?)');
         foreach ($payload['categories'] ?? [] as $row) {
             $insertCat->execute([
                 $row['id'],
@@ -188,6 +266,7 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['tipo'],
                 $row['orden'],
                 $row['activa'],
+                $row['is_favorite'] ?? 0,
             ]);
         }
         $insertRule = $pdo->prepare('INSERT INTO rules (id, patron, categoria, prioridad, tipo) VALUES (?, ?, ?, ?, ?)');
@@ -200,6 +279,16 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['tipo'],
             ]);
         }
+        $insertBudget = $pdo->prepare('INSERT INTO budgets (id, month, category_id, planned_amount, notes) VALUES (?, ?, ?, ?, ?)');
+        foreach ($payload['budgets'] ?? [] as $row) {
+            $insertBudget->execute([
+                $row['id'],
+                $row['month'],
+                $row['category_id'],
+                $row['planned_amount'],
+                $row['notes'] ?? '',
+            ]);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
@@ -209,7 +298,11 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categories = $pdo->query('SELECT * FROM categories ORDER BY orden, nombre')->fetchAll();
-$fav_categories = array_slice($categories, 0, 5);
+$fav_categories = $pdo->query('SELECT * FROM categories WHERE is_favorite = 1 AND activa = 1 ORDER BY orden, nombre')->fetchAll();
+$categoriesById = [];
+foreach ($categories as $cat) {
+    $categoriesById[(int)$cat['id']] = $cat;
+}
 
 $month = $_GET['month'] ?? date('Y-m');
 $filters = [
@@ -238,16 +331,49 @@ $stmt = $pdo->prepare('SELECT * FROM movements WHERE ' . implode(' AND ', $where
 $stmt->execute($params);
 $movements = $stmt->fetchAll();
 
-$summaryStmt = $pdo->prepare('SELECT categoria, SUM(importe) as total FROM movements WHERE mes = ? GROUP BY categoria ORDER BY categoria');
-$summaryStmt->execute([$month]);
-$totalsByCategory = $summaryStmt->fetchAll();
-
 $totals = $pdo->prepare('SELECT SUM(CASE WHEN importe > 0 THEN importe ELSE 0 END) as ingresos, SUM(CASE WHEN importe < 0 THEN importe ELSE 0 END) as gastos FROM movements WHERE mes = ?');
 $totals->execute([$month]);
 $totalsRow = $totals->fetch();
 $ingresos = (float)($totalsRow['ingresos'] ?? 0);
 $gastos = (float)($totalsRow['gastos'] ?? 0);
 $balance = $ingresos + $gastos;
+$realGastos = abs($gastos);
+
+$budgetStmt = $pdo->prepare('SELECT * FROM budgets WHERE month = ?');
+$budgetStmt->execute([$month]);
+$budgetRows = $budgetStmt->fetchAll();
+$budgetsByCategory = [];
+foreach ($budgetRows as $row) {
+    $budgetsByCategory[(int)$row['category_id']] = $row;
+}
+
+$budgetTotals = ['ingresos' => 0.0, 'gastos' => 0.0];
+foreach ($budgetsByCategory as $categoryId => $budget) {
+    $type = $categoriesById[$categoryId]['tipo'] ?? 'gasto';
+    if ($type === 'ingreso') {
+        $budgetTotals['ingresos'] += (float)$budget['planned_amount'];
+    } else {
+        $budgetTotals['gastos'] += (float)$budget['planned_amount'];
+    }
+}
+
+$budgetBalance = $budgetTotals['ingresos'] - $budgetTotals['gastos'];
+$diffBalance = $balance - $budgetBalance;
+
+$summaryCategoriesStmt = $pdo->prepare('SELECT c.id, c.nombre, c.tipo, c.orden,
+    COALESCE(SUM(CASE WHEN m.importe > 0 THEN m.importe ELSE 0 END), 0) AS ingresos,
+    COALESCE(SUM(CASE WHEN m.importe < 0 THEN m.importe ELSE 0 END), 0) AS gastos
+    FROM categories c
+    LEFT JOIN movements m ON m.categoria = c.nombre AND m.mes = ?
+    GROUP BY c.id
+    ORDER BY c.orden, c.nombre');
+$summaryCategoriesStmt->execute([$month]);
+$summaryCategories = $summaryCategoriesStmt->fetchAll();
+
+$activeCategories = array_values(array_filter($categories, static function (array $cat): bool {
+    return (int)$cat['activa'] === 1;
+}));
+$hasBudgetsForMonth = !empty($budgetsByCategory);
 
 function current_url(array $override = []): string {
     $params = array_merge($_GET, $override);
@@ -276,6 +402,7 @@ function current_url(array $override = []): string {
         <nav class="nav">
             <a href="<?= h(app_url('index.php')) ?>" class="<?= $page === 'movements' ? 'active' : '' ?>">Movimientos</a>
             <a href="<?= h(app_url('index.php?page=categories')) ?>" class="<?= $page === 'categories' ? 'active' : '' ?>">Categorías</a>
+            <a href="<?= h(app_url('index.php?page=budget')) ?>" class="<?= $page === 'budget' ? 'active' : '' ?>">Presupuesto</a>
             <a href="<?= h(app_url('index.php?page=summary')) ?>" class="<?= $page === 'summary' ? 'active' : '' ?>">Resumen</a>
             <a href="<?= h(app_url('index.php?page=backup')) ?>" class="<?= $page === 'backup' ? 'active' : '' ?>">Backup</a>
             <a href="<?= h(app_url('index.php?action=logout')) ?>">Salir</a>
@@ -322,6 +449,10 @@ function current_url(array $override = []): string {
                     <input type="checkbox" name="activa" checked>
                     <span>Activa</span>
                 </label>
+                <label class="switch">
+                    <input type="checkbox" name="is_favorite">
+                    <span>Favorita</span>
+                </label>
                 <button type="submit" class="primary">Añadir</button>
             </form>
             <div class="table-wrapper">
@@ -332,6 +463,7 @@ function current_url(array $override = []): string {
                             <th>Tipo</th>
                             <th>Orden</th>
                             <th>Activa</th>
+                            <th>Favorita</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -342,6 +474,7 @@ function current_url(array $override = []): string {
                                 <td><?= h($cat['tipo']) ?></td>
                                 <td><?= h((string)$cat['orden']) ?></td>
                                 <td><?= $cat['activa'] ? 'Sí' : 'No' ?></td>
+                                <td><?= $cat['is_favorite'] ? '⭐' : '—' ?></td>
                                 <td>
                                     <button class="ghost" type="button" data-edit='<?= h(json_encode($cat)) ?>'>Editar</button>
                                     <form method="post" action="<?= h(app_url('index.php?action=delete_category')) ?>" class="inline">
@@ -380,6 +513,10 @@ function current_url(array $override = []): string {
                         <input type="checkbox" name="activa" id="catActiva">
                         <span>Activa</span>
                     </label>
+                    <label class="switch">
+                        <input type="checkbox" name="is_favorite" id="catFavorite">
+                        <span>Favorita</span>
+                    </label>
                     <menu>
                         <button type="button" class="ghost" id="closeCategory">Cancelar</button>
                         <button type="submit" class="primary">Guardar</button>
@@ -402,11 +539,23 @@ function current_url(array $override = []): string {
                 </div>
                 <div class="summary-card">
                     <h3>Gastos</h3>
-                    <p class="negative">€ <?= format_amount($gastos) ?></p>
+                    <p class="negative">€ <?= format_amount($realGastos) ?></p>
                 </div>
                 <div class="summary-card">
                     <h3>Balance</h3>
                     <p class="<?= $balance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($balance) ?></p>
+                </div>
+                <div class="summary-card">
+                    <h3>Presupuesto ingresos</h3>
+                    <p>€ <?= format_amount($budgetTotals['ingresos']) ?></p>
+                </div>
+                <div class="summary-card">
+                    <h3>Presupuesto gastos</h3>
+                    <p>€ <?= format_amount($budgetTotals['gastos']) ?></p>
+                </div>
+                <div class="summary-card">
+                    <h3>Diferencia neta</h3>
+                    <p class="<?= $diffBalance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($diffBalance) ?></p>
                 </div>
             </div>
             <div class="table-wrapper">
@@ -414,19 +563,88 @@ function current_url(array $override = []): string {
                     <thead>
                         <tr>
                             <th>Categoría</th>
-                            <th>Total</th>
+                            <th>Presupuestado</th>
+                            <th>Real</th>
+                            <th>Diferencia</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($totalsByCategory as $row): ?>
+                        <?php foreach ($summaryCategories as $row):
+                            $budget = $budgetsByCategory[(int)$row['id']]['planned_amount'] ?? null;
+                            $actual = $row['tipo'] === 'ingreso' ? (float)$row['ingresos'] : abs((float)$row['gastos']);
+                            $diff = $budget !== null ? $actual - (float)$budget : null;
+                            ?>
                             <tr>
-                                <td><?= h($row['categoria']) ?></td>
-                                <td>€ <?= format_amount((float)$row['total']) ?></td>
+                                <td><?= h($row['nombre']) ?></td>
+                                <td><?= $budget !== null ? '€ ' . format_amount((float)$budget) : '-' ?></td>
+                                <td>€ <?= format_amount($actual) ?></td>
+                                <td class="<?= $diff === null ? '' : ($diff >= 0 ? 'positive' : 'negative') ?>">
+                                    <?= $diff !== null ? '€ ' . format_amount($diff) : '-' ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
+        </section>
+    <?php elseif ($page === 'budget'): ?>
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Presupuesto por categoría</h2>
+                    <p class="muted">Define importes positivos por categoría para el mes seleccionado.</p>
+                </div>
+                <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
+                    <input type="hidden" name="page" value="budget">
+                    <input type="month" name="month" value="<?= h($month) ?>">
+                    <button type="submit" class="ghost">Cambiar</button>
+                </form>
+            </div>
+            <form method="post" action="<?= h(app_url('index.php?action=save_budgets')) ?>" class="budget-form">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="month" value="<?= h($month) ?>">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th>Tipo</th>
+                                <th>Presupuestado</th>
+                                <th>Notas</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($activeCategories as $cat):
+                                $budget = $budgetsByCategory[(int)$cat['id']] ?? null;
+                                ?>
+                                <tr>
+                                    <td><?= h($cat['nombre']) ?></td>
+                                    <td><?= h($cat['tipo']) ?></td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" name="planned_amount[<?= (int)$cat['id'] ?>]" value="<?= h($budget['planned_amount'] ?? '') ?>" placeholder="0,00">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="notes[<?= (int)$cat['id'] ?>]" value="<?= h($budget['notes'] ?? '') ?>" placeholder="Notas opcionales">
+                                    </td>
+                                    <td>
+                                        <button class="ghost" type="submit" name="save_single" value="<?= (int)$cat['id'] ?>">Guardar fila</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="primary">Guardar todo</button>
+                </div>
+            </form>
+            <form method="post" action="<?= h(app_url('index.php?action=copy_budgets')) ?>" class="inline-form" data-has-existing="<?= $hasBudgetsForMonth ? '1' : '0' ?>">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="month" value="<?= h($month) ?>">
+                <input type="hidden" name="confirm_overwrite" value="0">
+                <button type="submit" class="ghost" id="copyBudgets">Copiar del mes anterior</button>
+            </form>
         </section>
     <?php elseif ($page === 'backup'): ?>
         <section class="panel">
@@ -522,11 +740,15 @@ function current_url(array $override = []): string {
                 <div class="full">
                     <span class="label">Favoritas</span>
                     <div class="pill-group">
-                        <?php foreach ($fav_categories as $cat): ?>
-                            <button class="pill" type="button" data-category="<?= h($cat['nombre']) ?>">
-                                <?= h($cat['nombre']) ?>
-                            </button>
-                        <?php endforeach; ?>
+                        <?php if (empty($fav_categories)): ?>
+                            <span class="muted">Marca categorías favoritas para acceder rápido.</span>
+                        <?php else: ?>
+                            <?php foreach ($fav_categories as $cat): ?>
+                                <button class="pill" type="button" data-category="<?= h($cat['nombre']) ?>">
+                                    <?= h($cat['nombre']) ?>
+                                </button>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <label>
