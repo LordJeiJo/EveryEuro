@@ -8,8 +8,26 @@ error_reporting(E_ALL);
 
 session_start();
 
+$scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+$baseUrl = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
+if ($baseUrl === '.' || $baseUrl === '/') {
+    $baseUrl = '';
+}
+define('BASE_URL', $baseUrl);
+
 function h(?string $value): string {
     return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+function app_url(string $path = ''): string {
+    $base = BASE_URL;
+    if ($path === '' || $path === '/') {
+        return $base !== '' ? $base : '/';
+    }
+    if ($path[0] !== '/') {
+        $path = '/' . $path;
+    }
+    return $base . $path;
 }
 
 function csrf_token(): string {
@@ -33,7 +51,7 @@ function is_logged_in(): bool {
 
 function require_login(): void {
     if (!is_logged_in()) {
-        header('Location: /index.php?page=login');
+        header('Location: ' . app_url('index.php?page=login'));
         exit;
     }
 }
