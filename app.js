@@ -4,6 +4,7 @@ const currencyFormatter = new Intl.NumberFormat("es-ES", {
 });
 
 const incomeTable = document.querySelector(".table");
+const incomeRowsContainer = document.getElementById("income-rows");
 const expenseContainer = document.querySelector(".expenses");
 const incomeForm = document.getElementById("income-form");
 const expenseForm = document.getElementById("expense-form");
@@ -16,6 +17,18 @@ const incomeFooter = document.getElementById("income-total-footer");
 const goalRemaining = document.getElementById("goal-remaining");
 const progressFill = document.getElementById("progress-fill");
 const progressPercent = document.getElementById("progress-percent");
+
+const loginForm = document.getElementById("login-form");
+const registerForm = document.getElementById("register-form");
+const logoutButton = document.getElementById("logout-button");
+const authStatus = document.getElementById("auth-status");
+const saveButton = document.getElementById("save-button");
+const loadButton = document.getElementById("load-button");
+const syncStatus = document.getElementById("sync-status");
+
+const API_BASE = "api";
+let currentUser = null;
+let defaultSnapshot = null;
 
 const parseValue = (input) => Number.parseFloat(input.value || "0") || 0;
 
@@ -122,6 +135,174 @@ const createExpenseCard = ({ name, desc, amount, category }) => {
   return card;
 };
 
+const snapshotDefault = () => {
+  if (!defaultSnapshot) {
+    defaultSnapshot = collectBudgetData();
+  }
+};
+
+const collectBudgetData = () => ({
+  incomes: Array.from(
+    incomeRowsContainer.querySelectorAll("[data-income-row]")
+  ).map((row) => {
+    const name = row.querySelector("span")?.textContent?.trim() || "";
+    const budget = row.querySelector('[data-field="budget"]')?.value || "0";
+    const actual = row.querySelector('[data-field="actual"]')?.value || "0";
+    return { name, budget, actual };
+  }),
+  expenses: Array.from(expenseContainer.querySelectorAll(".expense-card")).map(
+    (card) => ({
+      name: card.querySelector("h3")?.textContent?.trim() || "",
+      desc: card.querySelector("p")?.textContent?.trim() || "",
+      amount: card.querySelector("input")?.value || "0",
+      category: card.dataset.category || "libre",
+    })
+  ),
+  limits: getLimitValues(),
+});
+
+const applyBudgetData = (data) => {
+  if (!data) {
+    return;
+  }
+
+  incomeRowsContainer.innerHTML = "";
+  data.incomes?.forEach((income) => {
+    incomeRowsContainer.appendChild(createIncomeRow(income));
+  });
+
+  expenseContainer.innerHTML = "";
+  data.expenses?.forEach((expense) => {
+    expenseContainer.appendChild(createExpenseCard(expense));
+  });
+
+  limitInputs.forEach((input) => {
+    const nextValue = data.limits?.[input.dataset.limit];
+    if (typeof nextValue === "number") {
+      input.value = nextValue;
+    }
+  });
+
+  updateTotals();
+};
+
+const setSyncStatus = (message, type = "") => {
+  syncStatus.textContent = message;
+  syncStatus.className = `sync-status ${type}`.trim();
+};
+
+const fetchJson = async (url, options = {}) => {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    const errorMessage = data.error || "Error inesperado.";
+    throw new Error(errorMessage);
+  }
+
+  return data;
+};
+
+const updateAuthUI = (authenticated, email = "") => {
+  currentUser = authenticated ? { email } : null;
+  authStatus.textContent = authenticated ? email : "No autenticado";
+  loginForm.hidden = authenticated;
+  registerForm.hidden = authenticated;
+  logoutButton.hidden = !authenticated;
+  saveButton.disabled = !authenticated;
+  loadButton.disabled = !authenticated;
+};
+
+const checkSession = async () => {
+  try {
+    const data = await fetchJson(`${API_BASE}/session.php`);
+    updateAuthUI(data.authenticated, data.email);
+    if (data.authenticated) {
+      await loadBudget();
+    }
+  } catch (error) {
+    updateAuthUI(false);
+    setSyncStatus("Servidor no disponible. Usa el modo local.", "sync-status--error");
+  }
+};
+
+const login = async (email, password) => {
+  const data = await fetchJson(`${API_BASE}/login.php`, {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  updateAuthUI(true, data.email);
+  setSyncStatus("Sesión iniciada.", "sync-status--success");
+  await loadBudget();
+};
+
+const registerUser = async (email, password) => {
+  const data = await fetchJson(`${API_BASE}/register.php`, {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+  updateAuthUI(true, data.email);
+  setSyncStatus("Cuenta creada y sesión iniciada.", "sync-status--success");
+  await saveBudget();
+};
+
+const logout = async () => {
+  await fetchJson(`${API_BASE}/logout.php`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  updateAuthUI(false);
+  setSyncStatus("Sesión cerrada.", "sync-status--success");
+  if (defaultSnapshot) {
+    applyBudgetData(defaultSnapshot);
+  }
+};
+
+const saveBudget = async () => {
+  if (!currentUser) {
+    setSyncStatus("Necesitas iniciar sesión para guardar.", "sync-status--error");
+    return;
+  }
+
+  const payload = {
+    month: monthSelect.value,
+    data: collectBudgetData(),
+  };
+
+  const data = await fetchJson(`${API_BASE}/budget.php`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  setSyncStatus(`Guardado ${new Date(data.updated_at).toLocaleString("es-ES")}.`, "sync-status--success");
+};
+
+const loadBudget = async () => {
+  if (!currentUser) {
+    setSyncStatus("Inicia sesión para cargar datos.", "sync-status--error");
+    return;
+  }
+
+  const data = await fetchJson(`${API_BASE}/budget.php?month=${monthSelect.value}`);
+  if (!data.data) {
+    setSyncStatus("No hay datos guardados para este mes.", "sync-status--error");
+    if (defaultSnapshot) {
+      applyBudgetData(defaultSnapshot);
+    }
+    return;
+  }
+
+  applyBudgetData(data.data);
+  setSyncStatus("Datos cargados desde el servidor.", "sync-status--success");
+};
+
 document.querySelectorAll("#add-income-button, #add-expense-button").forEach((button) => {
   button.addEventListener("click", (event) => {
     const targetForm = event.currentTarget.id === "add-income-button" ? incomeForm : expenseForm;
@@ -136,7 +317,7 @@ incomeForm.addEventListener("submit", (event) => {
   const actual = document.getElementById("income-actual").value;
   if (!name) return;
   const newRow = createIncomeRow({ name, budget, actual });
-  incomeTable.appendChild(newRow);
+  incomeRowsContainer.appendChild(newRow);
   incomeForm.reset();
   incomeForm.hidden = true;
   updateTotals();
@@ -154,6 +335,54 @@ expenseForm.addEventListener("submit", (event) => {
   expenseForm.reset();
   expenseForm.hidden = true;
   updateTotals();
+});
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  try {
+    await login(email, password);
+    loginForm.reset();
+  } catch (error) {
+    setSyncStatus(error.message, "sync-status--error");
+  }
+});
+
+registerForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = document.getElementById("register-email").value.trim();
+  const password = document.getElementById("register-password").value;
+  try {
+    await registerUser(email, password);
+    registerForm.reset();
+  } catch (error) {
+    setSyncStatus(error.message, "sync-status--error");
+  }
+});
+
+logoutButton.addEventListener("click", async () => {
+  try {
+    await logout();
+  } catch (error) {
+    setSyncStatus(error.message, "sync-status--error");
+  }
+});
+
+saveButton.addEventListener("click", async () => {
+  try {
+    await saveBudget();
+  } catch (error) {
+    setSyncStatus(error.message, "sync-status--error");
+  }
+});
+
+loadButton.addEventListener("click", async () => {
+  try {
+    await loadBudget();
+  } catch (error) {
+    setSyncStatus(error.message, "sync-status--error");
+  }
 });
 
 document.addEventListener("input", (event) => {
@@ -177,10 +406,25 @@ document.addEventListener("click", (event) => {
   }
 });
 
-monthSelect.addEventListener("change", () => {
+monthSelect.addEventListener("change", async () => {
   document.querySelector(".month-selector").dataset.month = monthSelect.value;
+  if (currentUser) {
+    try {
+      await loadBudget();
+    } catch (error) {
+      setSyncStatus(error.message, "sync-status--error");
+    }
+  }
 });
 
 updateTotals();
 incomeForm.hidden = true;
 expenseForm.hidden = true;
+logoutButton.hidden = true;
+loginForm.hidden = false;
+registerForm.hidden = false;
+saveButton.disabled = true;
+loadButton.disabled = true;
+
+snapshotDefault();
+checkSession();

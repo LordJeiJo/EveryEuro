@@ -40,6 +40,13 @@ body {
   margin-bottom: 36px;
 }
 
+.header-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-end;
+}
+
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -83,6 +90,91 @@ h1 {
   background: rgba(111, 118, 139, 0.12);
   color: var(--muted);
   font-weight: 500;
+}
+
+.auth-panel {
+  width: min(420px, 100%);
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 12px;
+}
+
+.auth-panel__status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-panel__eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.auth-panel__user {
+  font-weight: 600;
+}
+
+.auth-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.auth-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-form__field label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.auth-form input {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  background: white;
+}
+
+.auth-form--secondary .ghost {
+  align-self: stretch;
+}
+
+.auth-panel__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.auth-panel__hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sync-status {
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sync-status--success {
+  color: var(--secondary);
+}
+
+.sync-status--error {
+  color: var(--danger);
 }
 
 .month-selector select {
@@ -492,6 +584,19 @@ h1 {
   .month-selector {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .header-controls {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .auth-panel {
+    width: 100%;
+  }
+
+  .auth-form {
+    grid-template-columns: 1fr;
   }
 
   .inline-form,

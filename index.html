@@ -24,18 +24,59 @@
             ayudarte a tomar decisiones cada mes.
           </p>
         </div>
-        <div class="month-selector">
-          <label for="month-select">Mes</label>
-          <select id="month-select" class="chip" aria-label="Seleccionar mes">
-            <option value="2024-08">Agosto 2024</option>
-            <option value="2024-09">Septiembre 2024</option>
-            <option value="2024-10">Octubre 2024</option>
-            <option value="2024-11">Noviembre 2024</option>
-            <option value="2024-12">Diciembre 2024</option>
-            <option value="2025-01">Enero 2025</option>
-            <option value="2025-02">Febrero 2025</option>
-            <option value="2025-03">Marzo 2025</option>
-          </select>
+        <div class="header-controls">
+          <div class="month-selector">
+            <label for="month-select">Mes</label>
+            <select id="month-select" class="chip" aria-label="Seleccionar mes">
+              <option value="2024-08">Agosto 2024</option>
+              <option value="2024-09">Septiembre 2024</option>
+              <option value="2024-10">Octubre 2024</option>
+              <option value="2024-11">Noviembre 2024</option>
+              <option value="2024-12">Diciembre 2024</option>
+              <option value="2025-01">Enero 2025</option>
+              <option value="2025-02">Febrero 2025</option>
+              <option value="2025-03">Marzo 2025</option>
+            </select>
+          </div>
+          <div class="auth-panel">
+            <div class="auth-panel__status">
+              <div>
+                <p class="auth-panel__eyebrow">Cuenta</p>
+                <p id="auth-status" class="auth-panel__user">No autenticado</p>
+              </div>
+              <button class="ghost" id="logout-button" type="button">Cerrar sesión</button>
+            </div>
+            <form class="auth-form" id="login-form">
+              <div class="auth-form__field">
+                <label for="login-email">Email</label>
+                <input id="login-email" type="email" required placeholder="tu@email.com" />
+              </div>
+              <div class="auth-form__field">
+                <label for="login-password">Contraseña</label>
+                <input id="login-password" type="password" required minlength="6" placeholder="******" />
+              </div>
+              <button class="button" type="submit">Entrar</button>
+            </form>
+            <form class="auth-form auth-form--secondary" id="register-form">
+              <div class="auth-form__field">
+                <label for="register-email">Nuevo email</label>
+                <input id="register-email" type="email" required placeholder="nuevo@email.com" />
+              </div>
+              <div class="auth-form__field">
+                <label for="register-password">Nueva contraseña</label>
+                <input id="register-password" type="password" required minlength="6" placeholder="******" />
+              </div>
+              <button class="ghost" type="submit">Crear cuenta</button>
+            </form>
+            <div class="auth-panel__actions">
+              <button class="button" id="save-button" type="button">Guardar mes</button>
+              <button class="ghost" id="load-button" type="button">Cargar mes</button>
+            </div>
+            <p class="auth-panel__hint">
+              Datos guardados en este alojamiento mediante SQLite (sin servicios externos).
+            </p>
+            <p class="sync-status" id="sync-status" role="status" aria-live="polite"></p>
+          </div>
         </div>
       </header>
 
@@ -87,135 +128,137 @@
               <span class="amount">Real</span>
               <span class="amount">Acciones</span>
             </div>
-            <div class="table__row" data-income-row>
-              <span>Nómina 1 · Sergio</span>
-              <span class="amount">
-                <input
-                  class="amount-input"
-                  type="number"
-                  step="0.01"
-                  value="1353.88"
-                  data-group="income"
-                  data-field="budget"
-                />
-              </span>
-              <span class="amount">
-                <input
-                  class="amount-input positive"
-                  type="number"
-                  step="0.01"
-                  value="1353.88"
-                  data-group="income"
-                  data-field="actual"
-                />
-              </span>
-              <span class="amount">
-                <button type="button" class="icon-button" data-remove="income">✕</button>
-              </span>
-            </div>
-            <div class="table__row" data-income-row>
-              <span>Nómina 2 · Judith</span>
-              <span class="amount">
-                <input
-                  class="amount-input"
-                  type="number"
-                  step="0.01"
-                  value="0"
-                  data-group="income"
-                  data-field="budget"
-                />
-              </span>
-              <span class="amount">
-                <input
-                  class="amount-input"
-                  type="number"
-                  step="0.01"
-                  value="0"
-                  data-group="income"
-                  data-field="actual"
-                />
-              </span>
-              <span class="amount">
-                <button type="button" class="icon-button" data-remove="income">✕</button>
-              </span>
-            </div>
-            <div class="table__row" data-income-row>
-              <span>Ingresos financieros</span>
-              <span class="amount">
-                <input
-                  class="amount-input"
-                  type="number"
-                  step="0.01"
-                  value="0"
-                  data-group="income"
-                  data-field="budget"
-                />
-              </span>
-              <span class="amount">
-                <input
-                  class="amount-input"
-                  type="number"
-                  step="0.01"
-                  value="0"
-                  data-group="income"
-                  data-field="actual"
-                />
-              </span>
-              <span class="amount">
-                <button type="button" class="icon-button" data-remove="income">✕</button>
-              </span>
-            </div>
-            <div class="table__row" data-income-row>
-              <span>Fondo de gastos extraordinarios</span>
-              <span class="amount">
-                <input
-                  class="amount-input"
-                  type="number"
-                  step="0.01"
-                  value="778.54"
-                  data-group="income"
-                  data-field="budget"
-                />
-              </span>
-              <span class="amount">
-                <input
-                  class="amount-input"
-                  type="number"
-                  step="0.01"
-                  value="778.54"
-                  data-group="income"
-                  data-field="actual"
-                />
-              </span>
-              <span class="amount">
-                <button type="button" class="icon-button" data-remove="income">✕</button>
-              </span>
-            </div>
-            <div class="table__row" data-income-row>
-              <span>Otros ingresos</span>
-              <span class="amount">
-                <input
-                  class="amount-input"
-                  type="number"
-                  step="0.01"
-                  value="496.35"
-                  data-group="income"
-                  data-field="budget"
-                />
-              </span>
-              <span class="amount">
-                <input
-                  class="amount-input"
-                  type="number"
-                  step="0.01"
-                  value="496.35"
-                  data-group="income"
-                  data-field="actual"
-                />
-              </span>
-              <span class="amount">
-                <button type="button" class="icon-button" data-remove="income">✕</button>
-              </span>
+            <div id="income-rows">
+              <div class="table__row" data-income-row>
+                <span>Nómina 1 · Sergio</span>
+                <span class="amount">
+                  <input
+                    class="amount-input"
+                    type="number"
+                    step="0.01"
+                    value="1353.88"
+                    data-group="income"
+                    data-field="budget"
+                  />
+                </span>
+                <span class="amount">
+                  <input
+                    class="amount-input positive"
+                    type="number"
+                    step="0.01"
+                    value="1353.88"
+                    data-group="income"
+                    data-field="actual"
+                  />
+                </span>
+                <span class="amount">
+                  <button type="button" class="icon-button" data-remove="income">✕</button>
+                </span>
+              </div>
+              <div class="table__row" data-income-row>
+                <span>Nómina 2 · Judith</span>
+                <span class="amount">
+                  <input
+                    class="amount-input"
+                    type="number"
+                    step="0.01"
+                    value="0"
+                    data-group="income"
+                    data-field="budget"
+                  />
+                </span>
+                <span class="amount">
+                  <input
+                    class="amount-input"
+                    type="number"
+                    step="0.01"
+                    value="0"
+                    data-group="income"
+                    data-field="actual"
+                  />
+                </span>
+                <span class="amount">
+                  <button type="button" class="icon-button" data-remove="income">✕</button>
+                </span>
+              </div>
+              <div class="table__row" data-income-row>
+                <span>Ingresos financieros</span>
+                <span class="amount">
+                  <input
+                    class="amount-input"
+                    type="number"
+                    step="0.01"
+                    value="0"
+                    data-group="income"
+                    data-field="budget"
+                  />
+                </span>
+                <span class="amount">
+                  <input
+                    class="amount-input"
+                    type="number"
+                    step="0.01"
+                    value="0"
+                    data-group="income"
+                    data-field="actual"
+                  />
+                </span>
+                <span class="amount">
+                  <button type="button" class="icon-button" data-remove="income">✕</button>
+                </span>
+              </div>
+              <div class="table__row" data-income-row>
+                <span>Fondo de gastos extraordinarios</span>
+                <span class="amount">
+                  <input
+                    class="amount-input"
+                    type="number"
+                    step="0.01"
+                    value="778.54"
+                    data-group="income"
+                    data-field="budget"
+                  />
+                </span>
+                <span class="amount">
+                  <input
+                    class="amount-input"
+                    type="number"
+                    step="0.01"
+                    value="778.54"
+                    data-group="income"
+                    data-field="actual"
+                  />
+                </span>
+                <span class="amount">
+                  <button type="button" class="icon-button" data-remove="income">✕</button>
+                </span>
+              </div>
+              <div class="table__row" data-income-row>
+                <span>Otros ingresos</span>
+                <span class="amount">
+                  <input
+                    class="amount-input"
+                    type="number"
+                    step="0.01"
+                    value="496.35"
+                    data-group="income"
+                    data-field="budget"
+                  />
+                </span>
+                <span class="amount">
+                  <input
+                    class="amount-input"
+                    type="number"
+                    step="0.01"
+                    value="496.35"
+                    data-group="income"
+                    data-field="actual"
+                  />
+                </span>
+                <span class="amount">
+                  <button type="button" class="icon-button" data-remove="income">✕</button>
+                </span>
+              </div>
             </div>
           </div>
           <div class="table__footer">
