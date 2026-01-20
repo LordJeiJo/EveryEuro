@@ -25,8 +25,17 @@
           </p>
         </div>
         <div class="month-selector">
-          <span>Mes</span>
-          <button type="button" class="chip">Agosto 2024</button>
+          <label for="month-select">Mes</label>
+          <select id="month-select" class="chip" aria-label="Seleccionar mes">
+            <option value="2024-08">Agosto 2024</option>
+            <option value="2024-09">Septiembre 2024</option>
+            <option value="2024-10">Octubre 2024</option>
+            <option value="2024-11">Noviembre 2024</option>
+            <option value="2024-12">Diciembre 2024</option>
+            <option value="2025-01">Enero 2025</option>
+            <option value="2025-02">Febrero 2025</option>
+            <option value="2025-03">Marzo 2025</option>
+          </select>
         </div>
       </header>
 
@@ -52,15 +61,33 @@
         <div class="panel">
           <div class="panel__header">
             <h2>Ingresos</h2>
-            <button class="ghost">Añadir ingreso</button>
+            <button class="ghost" id="add-income-button" type="button">
+              Añadir ingreso
+            </button>
           </div>
+          <form class="inline-form" id="income-form" aria-live="polite">
+            <div class="inline-form__field">
+              <label for="income-name">Concepto</label>
+              <input id="income-name" name="income-name" type="text" placeholder="Ej: Freelance" required />
+            </div>
+            <div class="inline-form__field">
+              <label for="income-budget">Presupuesto</label>
+              <input id="income-budget" name="income-budget" type="number" step="0.01" placeholder="0,00" required />
+            </div>
+            <div class="inline-form__field">
+              <label for="income-actual">Real</label>
+              <input id="income-actual" name="income-actual" type="number" step="0.01" placeholder="0,00" required />
+            </div>
+            <button class="button" type="submit">Guardar ingreso</button>
+          </form>
           <div class="table">
             <div class="table__row table__row--head">
               <span>Tipo</span>
               <span class="amount">Presupuesto</span>
               <span class="amount">Real</span>
+              <span class="amount">Acciones</span>
             </div>
-            <div class="table__row">
+            <div class="table__row" data-income-row>
               <span>Nómina 1 · Sergio</span>
               <span class="amount">
                 <input
@@ -82,8 +109,11 @@
                   data-field="actual"
                 />
               </span>
+              <span class="amount">
+                <button type="button" class="icon-button" data-remove="income">✕</button>
+              </span>
             </div>
-            <div class="table__row">
+            <div class="table__row" data-income-row>
               <span>Nómina 2 · Judith</span>
               <span class="amount">
                 <input
@@ -105,8 +135,11 @@
                   data-field="actual"
                 />
               </span>
+              <span class="amount">
+                <button type="button" class="icon-button" data-remove="income">✕</button>
+              </span>
             </div>
-            <div class="table__row">
+            <div class="table__row" data-income-row>
               <span>Ingresos financieros</span>
               <span class="amount">
                 <input
@@ -128,8 +161,11 @@
                   data-field="actual"
                 />
               </span>
+              <span class="amount">
+                <button type="button" class="icon-button" data-remove="income">✕</button>
+              </span>
             </div>
-            <div class="table__row">
+            <div class="table__row" data-income-row>
               <span>Fondo de gastos extraordinarios</span>
               <span class="amount">
                 <input
@@ -151,8 +187,11 @@
                   data-field="actual"
                 />
               </span>
+              <span class="amount">
+                <button type="button" class="icon-button" data-remove="income">✕</button>
+              </span>
             </div>
-            <div class="table__row">
+            <div class="table__row" data-income-row>
               <span>Otros ingresos</span>
               <span class="amount">
                 <input
@@ -174,6 +213,9 @@
                   data-field="actual"
                 />
               </span>
+              <span class="amount">
+                <button type="button" class="icon-button" data-remove="income">✕</button>
+              </span>
             </div>
           </div>
           <div class="table__footer">
@@ -185,7 +227,7 @@
         <div class="panel">
           <div class="panel__header">
             <h2>Presupuesto objetivo</h2>
-            <button class="ghost">Ajustar límites</button>
+            <span class="chip chip--muted">Ajuste de límites</span>
           </div>
           <div class="budget-goal">
             <div>
@@ -213,6 +255,31 @@
             Sugerencia: usa el remanente para reforzar el fondo de emergencia o
             amortizar deuda.
           </div>
+          <div class="limits">
+            <h3>Límites por categoría (% del ingreso)</h3>
+            <div class="limits__grid">
+              <label>
+                Ahorro
+                <input type="number" min="0" max="100" step="1" value="25" data-limit="ahorro" />
+              </label>
+              <label>
+                Gastos fijos
+                <input type="number" min="0" max="100" step="1" value="35" data-limit="fijos" />
+              </label>
+              <label>
+                Libre elección
+                <input type="number" min="0" max="100" step="1" value="30" data-limit="libre" />
+              </label>
+              <label>
+                Extraordinarios
+                <input type="number" min="0" max="100" step="1" value="20" data-limit="extra" />
+              </label>
+            </div>
+            <p class="limits__hint">
+              Ajusta los límites para mantener tu distribución alineada con tus
+              objetivos mensuales.
+            </p>
+          </div>
         </div>
 
         <div class="panel panel--full">
@@ -222,9 +289,36 @@
               <button class="tab tab--active">Resumen</button>
               <button class="tab">Detalle</button>
             </div>
+            <button class="ghost" id="add-expense-button" type="button">
+              Añadir gasto
+            </button>
           </div>
+          <form class="inline-form inline-form--compact" id="expense-form" aria-live="polite">
+            <div class="inline-form__field">
+              <label for="expense-name">Concepto</label>
+              <input id="expense-name" name="expense-name" type="text" placeholder="Ej: Supermercado" required />
+            </div>
+            <div class="inline-form__field">
+              <label for="expense-desc">Detalle</label>
+              <input id="expense-desc" name="expense-desc" type="text" placeholder="Opcional" />
+            </div>
+            <div class="inline-form__field">
+              <label for="expense-category">Categoría</label>
+              <select id="expense-category" name="expense-category">
+                <option value="libre">Libre elección</option>
+                <option value="fijos">Gastos fijos</option>
+                <option value="ahorro">Ahorro</option>
+                <option value="extra">Extraordinarios</option>
+              </select>
+            </div>
+            <div class="inline-form__field">
+              <label for="expense-amount">Importe</label>
+              <input id="expense-amount" name="expense-amount" type="number" step="0.01" placeholder="0,00" required />
+            </div>
+            <button class="button" type="submit">Guardar gasto</button>
+          </form>
           <div class="expenses">
-            <div class="expense-card">
+            <div class="expense-card" data-category="ahorro">
               <h3>Ahorro</h3>
               <p>Preparación para el fondo de emergencia y objetivos.</p>
               <div class="expense-card__footer">
@@ -238,7 +332,7 @@
                 <span class="badge" data-badge="ahorro">20%</span>
               </div>
             </div>
-            <div class="expense-card">
+            <div class="expense-card" data-category="fijos">
               <h3>Gastos fijos</h3>
               <p>Hipoteca, servicios, suscripciones y obligaciones.</p>
               <div class="expense-card__footer">
@@ -252,7 +346,7 @@
                 <span class="badge" data-badge="fijos">30%</span>
               </div>
             </div>
-            <div class="expense-card">
+            <div class="expense-card" data-category="libre">
               <h3>Libre elección</h3>
               <p>Alimentación, ocio y gastos personales.</p>
               <div class="expense-card__footer">
@@ -266,7 +360,7 @@
                 <span class="badge" data-badge="libre">33%</span>
               </div>
             </div>
-            <div class="expense-card">
+            <div class="expense-card" data-category="extra">
               <h3>Extraordinarios</h3>
               <p>Impuestos, seguros y compras grandes previstas.</p>
               <div class="expense-card__footer">
