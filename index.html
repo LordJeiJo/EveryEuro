@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EveryEuro - Presupuesto mensual</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="app__header">
+        <div>
+          <p class="eyebrow">Plan financiero personal</p>
+          <h1>EveryEuro</h1>
+          <p class="subtitle">
+            Presupuesto ligero, claro y rápido de actualizar. Diseñado para
+            ayudarte a tomar decisiones cada mes.
+          </p>
+        </div>
+        <div class="month-selector">
+          <span>Mes</span>
+          <button type="button" class="chip">Agosto 2024</button>
+        </div>
+      </header>
+
+      <section class="summary">
+        <div class="card">
+          <div class="card__title">Ingresos totales</div>
+          <div class="card__value">2.628,77 €</div>
+          <div class="card__meta">+2 fuentes activas</div>
+        </div>
+        <div class="card">
+          <div class="card__title">Gastos planificados</div>
+          <div class="card__value">2.208,39 €</div>
+          <div class="card__meta">70% asignado</div>
+        </div>
+        <div class="card card--accent">
+          <div class="card__title">Disponible</div>
+          <div class="card__value">420,38 €</div>
+          <div class="card__meta">Para ahorro o ajustes</div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <div class="panel__header">
+            <h2>Ingresos</h2>
+            <button class="ghost">Añadir ingreso</button>
+          </div>
+          <div class="table">
+            <div class="table__row table__row--head">
+              <span>Tipo</span>
+              <span class="amount">Presupuesto</span>
+              <span class="amount">Real</span>
+            </div>
+            <div class="table__row">
+              <span>Nómina 1 · Sergio</span>
+              <span class="amount">1.353,88 €</span>
+              <span class="amount positive">1.353,88 €</span>
+            </div>
+            <div class="table__row">
+              <span>Nómina 2 · Judith</span>
+              <span class="amount">0,00 €</span>
+              <span class="amount">0,00 €</span>
+            </div>
+            <div class="table__row">
+              <span>Ingresos financieros</span>
+              <span class="amount">0,00 €</span>
+              <span class="amount">0,00 €</span>
+            </div>
+            <div class="table__row">
+              <span>Fondo de gastos extraordinarios</span>
+              <span class="amount">778,54 €</span>
+              <span class="amount">778,54 €</span>
+            </div>
+            <div class="table__row">
+              <span>Otros ingresos</span>
+              <span class="amount">496,35 €</span>
+              <span class="amount">496,35 €</span>
+            </div>
+          </div>
+          <div class="table__footer">
+            <span>Total ingresos</span>
+            <span class="amount">2.628,77 €</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__header">
+            <h2>Presupuesto objetivo</h2>
+            <button class="ghost">Ajustar límites</button>
+          </div>
+          <div class="budget-goal">
+            <div>
+              <p class="budget-goal__title">Regla: presupuesto cero</p>
+              <p class="budget-goal__desc">
+                Asigna cada euro. El objetivo es dejar un remanente de 0 € una
+                vez distribuido entre ahorro, gastos fijos y variables.
+              </p>
+            </div>
+            <div class="budget-goal__metric">
+              <span>Remanente</span>
+              <strong>420,38 €</strong>
+            </div>
+          </div>
+          <div class="progress">
+            <div class="progress__label">
+              <span>Distribución completada</span>
+              <span>84%</span>
+            </div>
+            <div class="progress__bar">
+              <div class="progress__fill" style="width: 84%"></div>
+            </div>
+          </div>
+          <div class="note">
+            Sugerencia: usa el remanente para reforzar el fondo de emergencia o
+            amortizar deuda.
+          </div>
+        </div>
+
+        <div class="panel panel--full">
+          <div class="panel__header">
+            <h2>Gastos</h2>
+            <div class="tabs">
+              <button class="tab tab--active">Resumen</button>
+              <button class="tab">Detalle</button>
+            </div>
+          </div>
+          <div class="expenses">
+            <div class="expense-card">
+              <h3>Ahorro</h3>
+              <p>Preparación para el fondo de emergencia y objetivos.</p>
+              <div class="expense-card__footer">
+                <span>420,38 €</span>
+                <span class="badge">20%</span>
+              </div>
+            </div>
+            <div class="expense-card">
+              <h3>Gastos fijos</h3>
+              <p>Hipoteca, servicios, suscripciones y obligaciones.</p>
+              <div class="expense-card__footer">
+                <span>669,20 €</span>
+                <span class="badge">30%</span>
+              </div>
+            </div>
+            <div class="expense-card">
+              <h3>Libre elección</h3>
+              <p>Alimentación, ocio y gastos personales.</p>
+              <div class="expense-card__footer">
+                <span>728,75 €</span>
+                <span class="badge">33%</span>
+              </div>
+            </div>
+            <div class="expense-card">
+              <h3>Extraordinarios</h3>
+              <p>Impuestos, seguros y compras grandes previstas.</p>
+              <div class="expense-card__footer">
+                <span>390,06 €</span>
+                <span class="badge">17%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="app__footer">
+        <p>
+          Exporta a CSV, sincroniza con tu hoja y comparte con tu pareja.
+          <button class="ghost">Configurar</button>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
