@@ -446,7 +446,7 @@ function current_url(array $override = []): string {
     <link rel="stylesheet" href="<?= h(app_url('assets/styles.css')) ?>">
 </head>
 <body>
-<div class="app" data-theme="light">
+<div class="app">
     <header class="topbar">
         <div class="brand">
             <span class="dot"></span>
@@ -466,7 +466,6 @@ function current_url(array $override = []): string {
             <a href="<?= h(app_url('index.php?action=logout')) ?>">Salir</a>
         </nav>
         <?php endif; ?>
-        <button class="theme-toggle" type="button" id="themeToggle">Modo claro</button>
     </header>
 
     <?php if ($flash): ?>

@@ -1,29 +1,3 @@
-const themeToggle = document.getElementById('themeToggle');
-const storedTheme = localStorage.getItem('theme');
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-function updateToggleLabel(theme) {
-    if (!themeToggle) return;
-    themeToggle.textContent = theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
-}
-
-function applyTheme(theme) {
-    document.querySelector('.app')?.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-    updateToggleLabel(theme);
-}
-
-if (storedTheme) {
-    applyTheme(storedTheme);
-} else {
-    applyTheme(prefersDark ? 'dark' : 'light');
-}
-
-themeToggle?.addEventListener('click', () => {
-    const current = document.querySelector('.app')?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-    applyTheme(current === 'dark' ? 'light' : 'dark');
-});
-
 const reviewButton = document.getElementById('reviewWeek');
 const reviewHint = document.getElementById('reviewHint');
 const movementRows = document.querySelectorAll('[data-movement]');
