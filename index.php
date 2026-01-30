@@ -418,6 +418,9 @@ if ($defaultAccount === '' || !in_array($defaultAccount, $quickEntryAccountNames
 $currentUri = $_SERVER['REQUEST_URI'] ?? app_url('index.php');
 
 $month = $_GET['month'] ?? date('Y-m');
+$yearInput = $_GET['year'] ?? substr($month, 0, 4);
+$year = preg_match('/^\d{4}$/', (string)$yearInput) ? (string)$yearInput : date('Y');
+$yearLike = $year . '-%';
 $filters = [
     'status' => $_GET['status'] ?? 'all',
     'category' => $_GET['category'] ?? 'all',
@@ -465,6 +468,14 @@ $gastos = (float)($totalsRow['gastos'] ?? 0);
 $balance = $ingresos + $gastos;
 $realGastos = abs($gastos);
 
+$yearTotals = $pdo->prepare('SELECT SUM(CASE WHEN importe > 0 THEN importe ELSE 0 END) as ingresos, SUM(CASE WHEN importe < 0 THEN importe ELSE 0 END) as gastos FROM movements WHERE mes LIKE ?');
+$yearTotals->execute([$yearLike]);
+$yearTotalsRow = $yearTotals->fetch();
+$yearIngresos = (float)($yearTotalsRow['ingresos'] ?? 0);
+$yearGastos = (float)($yearTotalsRow['gastos'] ?? 0);
+$yearBalance = $yearIngresos + $yearGastos;
+$yearRealGastos = abs($yearGastos);
+
 $budgetStmt = $pdo->prepare('SELECT * FROM budgets WHERE month = ?');
 $budgetStmt->execute([$month]);
 $budgetRows = $budgetStmt->fetchAll();
@@ -484,6 +495,26 @@ foreach ($budgetsByCategory as $categoryId => $budget) {
 }
 
 $budgetBalance = $budgetTotals['ingresos'] - $budgetTotals['gastos'];
+
+$yearBudgetsStmt = $pdo->prepare('SELECT category_id, SUM(planned_amount) as planned_amount FROM budgets WHERE month LIKE ? GROUP BY category_id');
+$yearBudgetsStmt->execute([$yearLike]);
+$yearBudgetRows = $yearBudgetsStmt->fetchAll();
+$yearBudgetsByCategory = [];
+foreach ($yearBudgetRows as $row) {
+    $yearBudgetsByCategory[(int)$row['category_id']] = $row;
+}
+
+$yearBudgetTotals = ['ingresos' => 0.0, 'gastos' => 0.0];
+foreach ($yearBudgetsByCategory as $categoryId => $budget) {
+    $type = $categoriesById[$categoryId]['tipo'] ?? 'gasto';
+    if ($type === 'ingreso') {
+        $yearBudgetTotals['ingresos'] += (float)$budget['planned_amount'];
+    } else {
+        $yearBudgetTotals['gastos'] += (float)$budget['planned_amount'];
+    }
+}
+
+$yearBudgetBalance = $yearBudgetTotals['ingresos'] - $yearBudgetTotals['gastos'];
 
 function ratio_percent(float $actual, float $budget): int {
     if ($budget <= 0) {
@@ -507,6 +538,13 @@ $summaryRatios = [
 $balanceLabel = $balance > 0 ? 'Superávit' : ($balance < 0 ? 'Déficit' : 'Ajustado');
 $balanceTone = $balance > 0 ? 'positive' : ($balance < 0 ? 'negative' : 'neutral');
 
+$yearSummaryRatios = [
+    'ingresos' => ratio_percent($yearIngresos, $yearBudgetTotals['ingresos']),
+    'gastos' => ratio_percent($yearRealGastos, $yearBudgetTotals['gastos']),
+];
+$yearBalanceLabel = $yearBalance > 0 ? 'Superávit' : ($yearBalance < 0 ? 'Déficit' : 'Ajustado');
+$yearBalanceTone = $yearBalance > 0 ? 'positive' : ($yearBalance < 0 ? 'negative' : 'neutral');
+
 $summaryCategoriesStmt = $pdo->prepare('SELECT c.id, c.nombre, c.tipo, c.orden,
     COALESCE(SUM(CASE WHEN m.importe > 0 THEN m.importe ELSE 0 END), 0) AS ingresos,
     COALESCE(SUM(CASE WHEN m.importe < 0 THEN m.importe ELSE 0 END), 0) AS gastos
@@ -516,6 +554,16 @@ $summaryCategoriesStmt = $pdo->prepare('SELECT c.id, c.nombre, c.tipo, c.orden,
     ORDER BY c.orden, c.nombre');
 $summaryCategoriesStmt->execute([$month]);
 $summaryCategories = $summaryCategoriesStmt->fetchAll();
+
+$yearSummaryCategoriesStmt = $pdo->prepare('SELECT c.id, c.nombre, c.tipo, c.orden,
+    COALESCE(SUM(CASE WHEN m.importe > 0 THEN m.importe ELSE 0 END), 0) AS ingresos,
+    COALESCE(SUM(CASE WHEN m.importe < 0 THEN m.importe ELSE 0 END), 0) AS gastos
+    FROM categories c
+    LEFT JOIN movements m ON m.categoria = c.nombre AND m.mes LIKE ?
+    GROUP BY c.id
+    ORDER BY c.orden, c.nombre');
+$yearSummaryCategoriesStmt->execute([$yearLike]);
+$yearSummaryCategories = $yearSummaryCategoriesStmt->fetchAll();
 
 $actualByCategory = [];
 foreach ($summaryCategories as $row) {
@@ -916,12 +964,12 @@ function current_url(array $override = []): string {
             <div class="panel-header">
                 <div>
                     <h2>Análisis del año</h2>
-                    <p class="muted">Comparativa clara entre lo presupuestado y lo real.</p>
+                    <p class="muted">Sumatorio de todos los meses del año seleccionado.</p>
                 </div>
                 <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
                     <input type="hidden" name="page" value="summary">
-                    <input type="month" name="month" value="<?= h($month) ?>">
-                    <button type="submit" class="ghost">Cambiar</button>
+                    <input type="number" name="year" min="2000" max="2100" value="<?= h($year) ?>" aria-label="Año">
+                    <button type="submit" class="ghost">Cambiar año</button>
                 </form>
             </div>
             <div class="summary-grid">
@@ -929,39 +977,39 @@ function current_url(array $override = []): string {
                     <div class="summary-card-header">
                         <div>
                             <h3>Ingresos</h3>
-                            <p class="positive"><?= format_amount($ingresos) ?> €</p>
+                            <p class="positive"><?= format_amount($yearIngresos) ?> €</p>
                         </div>
-                        <?php $ingresosRatio = $summaryRatios['ingresos']; ?>
+                        <?php $ingresosRatio = $yearSummaryRatios['ingresos']; ?>
                         <div class="summary-ring <?= $ingresosRatio > 100 ? 'over' : '' ?>"
                              style="--progress: <?= ring_progress($ingresosRatio) ?>; --overflow: <?= ring_overflow($ingresosRatio) ?>; --ring-color: var(--success);">
-                            <span><?= $summaryRatios['ingresos'] ?>%</span>
+                            <span><?= $yearSummaryRatios['ingresos'] ?>%</span>
                         </div>
                     </div>
-                    <p class="summary-meta">Sobre <?= format_amount($budgetTotals['ingresos']) ?> € presupuestados.</p>
+                    <p class="summary-meta">Sobre <?= format_amount($yearBudgetTotals['ingresos']) ?> € presupuestados.</p>
                 </div>
                 <div class="summary-card">
                     <div class="summary-card-header">
                         <div>
                             <h3>Gastos</h3>
-                            <p class="negative"><?= format_amount($realGastos) ?> €</p>
+                            <p class="negative"><?= format_amount($yearRealGastos) ?> €</p>
                         </div>
-                        <?php $gastosRatio = $summaryRatios['gastos']; ?>
+                        <?php $gastosRatio = $yearSummaryRatios['gastos']; ?>
                         <div class="summary-ring <?= $gastosRatio > 100 ? 'over' : '' ?>"
                              style="--progress: <?= ring_progress($gastosRatio) ?>; --overflow: <?= ring_overflow($gastosRatio) ?>; --ring-color: var(--danger);">
-                            <span><?= $summaryRatios['gastos'] ?>%</span>
+                            <span><?= $yearSummaryRatios['gastos'] ?>%</span>
                         </div>
                     </div>
-                    <p class="summary-meta">Sobre <?= format_amount($budgetTotals['gastos']) ?> € presupuestados.</p>
+                    <p class="summary-meta">Sobre <?= format_amount($yearBudgetTotals['gastos']) ?> € presupuestados.</p>
                 </div>
                 <div class="summary-card">
                     <div class="summary-card-header">
                         <div>
                             <h3>Saldo del año</h3>
-                            <p class="summary-amount <?= $balanceTone ?>"><?= format_amount($balance) ?> €</p>
+                            <p class="summary-amount <?= $yearBalanceTone ?>"><?= format_amount($yearBalance) ?> €</p>
                         </div>
-                        <span class="summary-status <?= $balanceTone ?>"><?= $balanceLabel ?></span>
+                        <span class="summary-status <?= $yearBalanceTone ?>"><?= $yearBalanceLabel ?></span>
                     </div>
-                    <p class="summary-meta">Diferencia (debería de ser cero): <?= format_amount($budgetBalance) ?> €.</p>
+                    <p class="summary-meta">Diferencia (debería de ser cero): <?= format_amount($yearBudgetBalance) ?> €.</p>
                 </div>
             </div>
             <div class="table-wrapper">
@@ -976,8 +1024,8 @@ function current_url(array $override = []): string {
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($summaryCategories as $row):
-                            $budget = $budgetsByCategory[(int)$row['id']]['planned_amount'] ?? null;
+                        <?php foreach ($yearSummaryCategories as $row):
+                            $budget = $yearBudgetsByCategory[(int)$row['id']]['planned_amount'] ?? null;
                             $actual = $row['tipo'] === 'ingreso' ? (float)$row['ingresos'] : abs((float)$row['gastos']);
                             $budgetValue = $budget !== null ? (float)$budget : 0.0;
                             $hasPositiveBudget = $budgetValue > 0;
