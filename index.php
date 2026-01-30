@@ -912,6 +912,119 @@ function current_url(array $override = []): string {
                 </table>
             </div>
         </section>
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Análisis del año</h2>
+                    <p class="muted">Comparativa clara entre lo presupuestado y lo real.</p>
+                </div>
+                <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
+                    <input type="hidden" name="page" value="summary">
+                    <input type="month" name="month" value="<?= h($month) ?>">
+                    <button type="submit" class="ghost">Cambiar</button>
+                </form>
+            </div>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-card-header">
+                        <div>
+                            <h3>Ingresos</h3>
+                            <p class="positive"><?= format_amount($ingresos) ?> €</p>
+                        </div>
+                        <?php $ingresosRatio = $summaryRatios['ingresos']; ?>
+                        <div class="summary-ring <?= $ingresosRatio > 100 ? 'over' : '' ?>"
+                             style="--progress: <?= ring_progress($ingresosRatio) ?>; --overflow: <?= ring_overflow($ingresosRatio) ?>; --ring-color: var(--success);">
+                            <span><?= $summaryRatios['ingresos'] ?>%</span>
+                        </div>
+                    </div>
+                    <p class="summary-meta">Sobre <?= format_amount($budgetTotals['ingresos']) ?> € presupuestados.</p>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-header">
+                        <div>
+                            <h3>Gastos</h3>
+                            <p class="negative"><?= format_amount($realGastos) ?> €</p>
+                        </div>
+                        <?php $gastosRatio = $summaryRatios['gastos']; ?>
+                        <div class="summary-ring <?= $gastosRatio > 100 ? 'over' : '' ?>"
+                             style="--progress: <?= ring_progress($gastosRatio) ?>; --overflow: <?= ring_overflow($gastosRatio) ?>; --ring-color: var(--danger);">
+                            <span><?= $summaryRatios['gastos'] ?>%</span>
+                        </div>
+                    </div>
+                    <p class="summary-meta">Sobre <?= format_amount($budgetTotals['gastos']) ?> € presupuestados.</p>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-header">
+                        <div>
+                            <h3>Saldo del año</h3>
+                            <p class="summary-amount <?= $balanceTone ?>"><?= format_amount($balance) ?> €</p>
+                        </div>
+                        <span class="summary-status <?= $balanceTone ?>"><?= $balanceLabel ?></span>
+                    </div>
+                    <p class="summary-meta">Diferencia (debería de ser cero): <?= format_amount($budgetBalance) ?> €.</p>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Categoría</th>
+                            <th>Presupuestado</th>
+                            <th>Real</th>
+                            <th>Diferencia</th>
+                            <th>Progreso</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($summaryCategories as $row):
+                            $budget = $budgetsByCategory[(int)$row['id']]['planned_amount'] ?? null;
+                            $actual = $row['tipo'] === 'ingreso' ? (float)$row['ingresos'] : abs((float)$row['gastos']);
+                            $budgetValue = $budget !== null ? (float)$budget : 0.0;
+                            $hasPositiveBudget = $budgetValue > 0;
+                            $diff = $hasPositiveBudget ? $budgetValue - $actual : null;
+                            $progress = $hasPositiveBudget ? ($actual / $budgetValue) * 100 : null;
+                            $isOverBudget = $hasPositiveBudget && $actual > $budgetValue;
+                            $isOffBudget = !$hasPositiveBudget && $actual > 0;
+                            $isPending = $hasPositiveBudget && $actual == 0.0;
+                            $progressClamped = $progress !== null ? min(100, max(0, $progress)) : 0;
+                            $overflowProgress = $progress !== null ? max(0, $progress - 100) : 0;
+                            ?>
+                            <tr>
+                                <td><?= h($row['nombre']) ?></td>
+                                <td><?= $budget !== null ? format_amount($budgetValue) . ' €' : '-' ?></td>
+                                <td><?= format_amount($actual) ?> €</td>
+                                <td class="<?= $diff === null ? '' : ($isPending ? 'muted' : ($diff >= 0 ? 'positive' : 'negative')) ?>">
+                                    <?= $diff !== null ? format_amount($diff) . ' €' : '-' ?>
+                                </td>
+                                <td>
+                                    <?php if ($progress === null): ?>
+                                        <?php if ($isOffBudget): ?>
+                                            <span class="status-badge warning">Fuera de presupuesto</span>
+                                        <?php else: ?>
+                                            —
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <div class="progress <?= $overflowProgress > 0 ? 'has-overflow' : '' ?>">
+                                            <div class="progress-bars">
+                                                <div class="progress-bar <?= $isOverBudget ? 'over' : '' ?> <?= $isPending ? 'pending' : '' ?>">
+                                                    <span class="progress-fill" style="width: <?= $progressClamped ?>%"></span>
+                                                </div>
+                                                <?php if ($overflowProgress > 0): ?>
+                                                    <div class="progress-bar overflow">
+                                                        <span class="progress-fill" style="width: <?= min(100, $overflowProgress) ?>%"></span>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <small class="<?= $isPending ? 'muted' : '' ?>"><?= (int)round($progress) ?>%</small>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     <?php elseif ($page === 'budget'): ?>
         <section class="panel">
             <div class="panel-header">
