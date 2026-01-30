@@ -152,6 +152,7 @@ label {
     gap: 6px;
     font-weight: 600;
     font-size: 0.9rem;
+    color: var(--text);
 }
 
 input,
@@ -405,12 +406,13 @@ tbody tr {
 }
 
 dialog {
-    border: none;
+    border: 1px solid rgba(148, 163, 184, 0.25);
     padding: 0;
     border-radius: 20px;
-    background: var(--panel);
-    box-shadow: var(--shadow);
+    background: var(--panel-muted);
+    box-shadow: 0 28px 64px rgba(15, 23, 42, 0.6);
     width: min(420px, 92vw);
+    color: var(--text);
 }
 
 dialog::backdrop {
@@ -420,6 +422,10 @@ dialog::backdrop {
 
 .dialog-form {
     padding: 20px;
+}
+
+.dialog-form label {
+    color: var(--text);
 }
 
 .dialog-form h3 {
@@ -565,10 +571,20 @@ menu {
 
 .status-pill {
     border: none;
-    padding: 6px 12px;
+    padding: 6px 10px;
     border-radius: 999px;
     font-weight: 600;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 32px;
+}
+
+.status-pill svg {
+    width: 16px;
+    height: 16px;
 }
 
 .status-pill.pending {
