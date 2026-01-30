@@ -1138,7 +1138,17 @@ function current_url(array $override = []): string {
                                         <input type="hidden" name="id" value="<?= (int)$move['id'] ?>">
                                         <input type="hidden" name="estado" value="<?= $move['estado'] === 'pendiente' ? 'revisado' : 'pendiente' ?>">
                                         <button class="status-pill <?= $isPending ? 'pending' : 'reviewed' ?>" type="submit">
-                                            <?= $isPending ? 'Pendiente' : 'Revisado' ?>
+                                            <?php if ($isPending): ?>
+                                                <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                    <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v5.25l3.5 2.05-.9 1.46L11 13V7h2Z" fill="currentColor"/>
+                                                </svg>
+                                                <span class="sr-only">Pendiente</span>
+                                            <?php else: ?>
+                                                <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                    <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.1 13.6 5.8-5.8 1.4 1.4-7.2 7.2-3.8-3.8 1.4-1.4 2.4 2.4Z" fill="currentColor"/>
+                                                </svg>
+                                                <span class="sr-only">Revisado</span>
+                                            <?php endif; ?>
                                         </button>
                                     </form>
                                 </td>
