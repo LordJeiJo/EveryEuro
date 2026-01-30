@@ -384,13 +384,21 @@ menu {
 
 .quick-entry-row {
     display: grid;
-    grid-template-columns: minmax(220px, 1.8fr) 140px 180px 180px auto;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
     align-items: end;
     padding: 14px;
     border-radius: 16px;
     background: var(--panel-muted);
     border: 1px solid var(--border);
+}
+
+.quick-entry-row.primary {
+    grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1.6fr) minmax(140px, 0.6fr);
+}
+
+.quick-entry-row.secondary {
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
 }
 
 .quick-entry-row .wide {
@@ -643,6 +651,10 @@ button:hover,
     }
     .quick-entry-row {
         grid-template-columns: 1fr 1fr;
+    }
+    .quick-entry-row.primary,
+    .quick-entry-row.secondary {
+        grid-template-columns: 1fr;
     }
     .quick-entry-row .wide {
         grid-column: 1 / -1;

@@ -32,17 +32,64 @@ reviewButton?.addEventListener('click', () => {
 });
 
 const categorySelect = document.getElementById('categorySelect');
-const pills = document.querySelectorAll('.pill');
+const descriptionInput = document.getElementById('descriptionInput');
 
-pills.forEach((pill) => {
-    pill.addEventListener('click', () => {
-        pills.forEach((p) => p.classList.remove('active'));
-        pill.classList.add('active');
-        const value = pill.getAttribute('data-category');
-        if (categorySelect && value) {
-            categorySelect.value = value;
+function normalizeText(value) {
+    return value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '');
+}
+
+function buildKeywordMap() {
+    if (!categorySelect) return [];
+    return Array.from(categorySelect.options)
+        .filter((option) => option.value)
+        .map((option) => {
+            const keywords = option.dataset.keywords || '';
+            const list = keywords
+                .split(',')
+                .map((keyword) => normalizeText(keyword.trim()))
+                .filter(Boolean)
+                .sort((a, b) => b.length - a.length);
+            return {
+                value: option.value,
+                keywords: list,
+            };
+        });
+}
+
+const keywordMap = buildKeywordMap();
+let manualCategorySelection = false;
+
+function suggestCategory() {
+    if (!descriptionInput || !categorySelect || manualCategorySelection) return;
+    const description = normalizeText(descriptionInput.value);
+    if (!description) {
+        categorySelect.value = '';
+        return;
+    }
+    let suggested = '';
+    for (const entry of keywordMap) {
+        if (entry.keywords.some((keyword) => description.includes(keyword))) {
+            suggested = entry.value;
+            break;
         }
-    });
+    }
+    if (suggested) {
+        categorySelect.value = suggested;
+    }
+}
+
+descriptionInput?.addEventListener('input', () => {
+    if (!descriptionInput.value.trim()) {
+        manualCategorySelection = false;
+    }
+    suggestCategory();
+});
+
+categorySelect?.addEventListener('change', () => {
+    manualCategorySelection = categorySelect.value !== '';
 });
 
 const dialog = document.getElementById('categoryDialog');
@@ -60,7 +107,10 @@ document.querySelectorAll('[data-edit]').forEach((button) => {
         document.getElementById('catTipo').value = data.tipo;
         document.getElementById('catOrden').value = data.orden;
         document.getElementById('catActiva').checked = data.activa === 1;
-        document.getElementById('catFavorite').checked = data.is_favorite === 1;
+        const keywordsInput = document.getElementById('catKeywords');
+        if (keywordsInput) {
+            keywordsInput.value = data.keywords || '';
+        }
         dialog.showModal();
     });
 });
