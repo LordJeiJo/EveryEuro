@@ -520,9 +520,17 @@ function current_url(array $override = []): string {
                     <option value="extra">Extra</option>
                 </select>
                 <input type="number" name="orden" value="0" min="0">
-                <label class="switch">
+                <label class="switch icon-toggle">
                     <input type="checkbox" name="activa" checked>
-                    <span>Visible</span>
+                    <span class="toggle-icon" aria-hidden="true">
+                        <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M12 5c5.523 0 9.5 4.5 10.5 7-1 2.5-4.977 7-10.5 7S2.5 14.5 1.5 12C2.5 9.5 6.477 5 12 5Zm0 3.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" fill="currentColor"/>
+                        </svg>
+                        <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M3 5.27 4.28 4l15.72 15.73-1.27 1.27-3.2-3.2A10.72 10.72 0 0 1 12 19c-5.523 0-9.5-4.5-10.5-7a12.9 12.9 0 0 1 3.54-4.88L3 5.27Zm5.06 5.06a3.5 3.5 0 0 0 4.95 4.95L8.06 10.33ZM12 7c.75 0 1.47.14 2.14.4L12.8 6.06A10.72 10.72 0 0 0 12 5c-1.9 0-3.64.53-5.1 1.3l1.43 1.43A7.2 7.2 0 0 1 12 7Zm9.5 5c-.5 1.25-2 3.4-4.2 4.86l-1.45-1.45C17.3 14.4 18.6 12.8 19.5 12c-.9-.8-2.2-2.4-3.7-3.4l1.5-1.5c2.1 1.4 3.6 3.6 4.2 4.9Z" fill="currentColor"/>
+                        </svg>
+                    </span>
+                    <span class="sr-only">Visible</span>
                 </label>
                 <label>
                     Palabras clave
@@ -594,9 +602,17 @@ function current_url(array $override = []): string {
                         Orden
                         <input type="number" name="orden" id="catOrden" min="0">
                     </label>
-                    <label class="switch">
+                    <label class="switch icon-toggle">
                         <input type="checkbox" name="activa" id="catActiva">
-                        <span>Visible</span>
+                        <span class="toggle-icon" aria-hidden="true">
+                            <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M12 5c5.523 0 9.5 4.5 10.5 7-1 2.5-4.977 7-10.5 7S2.5 14.5 1.5 12C2.5 9.5 6.477 5 12 5Zm0 3.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" fill="currentColor"/>
+                            </svg>
+                            <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M3 5.27 4.28 4l15.72 15.73-1.27 1.27-3.2-3.2A10.72 10.72 0 0 1 12 19c-5.523 0-9.5-4.5-10.5-7a12.9 12.9 0 0 1 3.54-4.88L3 5.27Zm5.06 5.06a3.5 3.5 0 0 0 4.95 4.95L8.06 10.33ZM12 7c.75 0 1.47.14 2.14.4L12.8 6.06A10.72 10.72 0 0 0 12 5c-1.9 0-3.64.53-5.1 1.3l1.43 1.43A7.2 7.2 0 0 1 12 7Zm9.5 5c-.5 1.25-2 3.4-4.2 4.86l-1.45-1.45C17.3 14.4 18.6 12.8 19.5 12c-.9-.8-2.2-2.4-3.7-3.4l1.5-1.5c2.1 1.4 3.6 3.6 4.2 4.9Z" fill="currentColor"/>
+                            </svg>
+                        </span>
+                        <span class="sr-only">Visible</span>
                     </label>
                     <label>
                         Palabras clave
@@ -618,9 +634,17 @@ function current_url(array $override = []): string {
                 <input type="hidden" name="id" value="0">
                 <input type="text" name="nombre" placeholder="Ej: Tarjeta" required>
                 <input type="number" name="orden" value="0" min="0">
-                <label class="switch">
+                <label class="switch icon-toggle">
                     <input type="checkbox" name="activa" checked>
-                    <span>Visible</span>
+                    <span class="toggle-icon" aria-hidden="true">
+                        <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M12 5c5.523 0 9.5 4.5 10.5 7-1 2.5-4.977 7-10.5 7S2.5 14.5 1.5 12C2.5 9.5 6.477 5 12 5Zm0 3.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" fill="currentColor"/>
+                        </svg>
+                        <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M3 5.27 4.28 4l15.72 15.73-1.27 1.27-3.2-3.2A10.72 10.72 0 0 1 12 19c-5.523 0-9.5-4.5-10.5-7a12.9 12.9 0 0 1 3.54-4.88L3 5.27Zm5.06 5.06a3.5 3.5 0 0 0 4.95 4.95L8.06 10.33ZM12 7c.75 0 1.47.14 2.14.4L12.8 6.06A10.72 10.72 0 0 0 12 5c-1.9 0-3.64.53-5.1 1.3l1.43 1.43A7.2 7.2 0 0 1 12 7Zm9.5 5c-.5 1.25-2 3.4-4.2 4.86l-1.45-1.45C17.3 14.4 18.6 12.8 19.5 12c-.9-.8-2.2-2.4-3.7-3.4l1.5-1.5c2.1 1.4 3.6 3.6 4.2 4.9Z" fill="currentColor"/>
+                        </svg>
+                    </span>
+                    <span class="sr-only">Visible</span>
                 </label>
                 <button type="submit" class="primary">Añadir</button>
             </form>
@@ -675,9 +699,17 @@ function current_url(array $override = []): string {
                         Orden
                         <input type="number" name="orden" id="accountOrden" min="0">
                     </label>
-                    <label class="switch">
+                    <label class="switch icon-toggle">
                         <input type="checkbox" name="activa" id="accountActiva">
-                        <span>Visible</span>
+                        <span class="toggle-icon" aria-hidden="true">
+                            <svg class="icon-on" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M12 5c5.523 0 9.5 4.5 10.5 7-1 2.5-4.977 7-10.5 7S2.5 14.5 1.5 12C2.5 9.5 6.477 5 12 5Zm0 3.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" fill="currentColor"/>
+                            </svg>
+                            <svg class="icon-off" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M3 5.27 4.28 4l15.72 15.73-1.27 1.27-3.2-3.2A10.72 10.72 0 0 1 12 19c-5.523 0-9.5-4.5-10.5-7a12.9 12.9 0 0 1 3.54-4.88L3 5.27Zm5.06 5.06a3.5 3.5 0 0 0 4.95 4.95L8.06 10.33ZM12 7c.75 0 1.47.14 2.14.4L12.8 6.06A10.72 10.72 0 0 0 12 5c-1.9 0-3.64.53-5.1 1.3l1.43 1.43A7.2 7.2 0 0 1 12 7Zm9.5 5c-.5 1.25-2 3.4-4.2 4.86l-1.45-1.45C17.3 14.4 18.6 12.8 19.5 12c-.9-.8-2.2-2.4-3.7-3.4l1.5-1.5c2.1 1.4 3.6 3.6 4.2 4.9Z" fill="currentColor"/>
+                            </svg>
+                        </span>
+                        <span class="sr-only">Visible</span>
                     </label>
                     <menu>
                         <button type="button" class="ghost" id="closeAccount">Cancelar</button>
