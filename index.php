@@ -449,10 +449,12 @@ $stmt = $pdo->prepare('SELECT * FROM movements WHERE ' . implode(' AND ', $where
 $stmt->execute($params);
 $movements = $stmt->fetchAll();
 $pendingCount = 0;
+$filteredTotal = 0.0;
 foreach ($movements as $move) {
     if ($move['estado'] === 'pendiente') {
         $pendingCount++;
     }
+    $filteredTotal += (float)$move['importe'];
 }
 
 $totals = $pdo->prepare('SELECT SUM(CASE WHEN importe > 0 THEN importe ELSE 0 END) as ingresos, SUM(CASE WHEN importe < 0 THEN importe ELSE 0 END) as gastos FROM movements WHERE mes = ?');
@@ -866,7 +868,7 @@ function current_url(array $override = []): string {
                             $actual = $row['tipo'] === 'ingreso' ? (float)$row['ingresos'] : abs((float)$row['gastos']);
                             $budgetValue = $budget !== null ? (float)$budget : 0.0;
                             $hasPositiveBudget = $budgetValue > 0;
-                            $diff = $hasPositiveBudget ? $actual - $budgetValue : null;
+                            $diff = $hasPositiveBudget ? $budgetValue - $actual : null;
                             $progress = $hasPositiveBudget ? ($actual / $budgetValue) * 100 : null;
                             $isOverBudget = $hasPositiveBudget && $actual > $budgetValue;
                             $isOffBudget = !$hasPositiveBudget && $actual > 0;
@@ -1302,6 +1304,15 @@ function current_url(array $override = []): string {
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2" class="muted"><strong>Total</strong></td>
+                            <td class="amount <?= $filteredTotal >= 0 ? 'positive' : 'negative' ?>">
+                                <strong><?= format_amount(abs($filteredTotal)) ?> €</strong>
+                            </td>
+                            <td colspan="4"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </section>
