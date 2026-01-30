@@ -97,6 +97,9 @@ const closeButton = document.getElementById('closeCategory');
 const accountDialog = document.getElementById('accountDialog');
 const closeAccount = document.getElementById('closeAccount');
 const copyBudgets = document.getElementById('copyBudgets');
+const budgetColumnsSelect = document.getElementById('budgetColumns');
+const budgetGrid = document.querySelector('.budget-grid');
+const budgetColumnsKey = 'budget-columns';
 
 document.querySelectorAll('[data-edit]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -144,3 +147,20 @@ copyBudgets?.addEventListener('click', (event) => {
         confirmInput.value = '1';
     }
 });
+
+function applyBudgetColumns(value) {
+    if (!budgetGrid) return;
+    budgetGrid.style.setProperty('--budget-columns', value);
+}
+
+if (budgetColumnsSelect && budgetGrid) {
+    const savedColumns = window.localStorage.getItem(budgetColumnsKey);
+    const initialColumns = savedColumns || budgetColumnsSelect.value;
+    budgetColumnsSelect.value = initialColumns;
+    applyBudgetColumns(initialColumns);
+    budgetColumnsSelect.addEventListener('change', (event) => {
+        const value = event.target.value;
+        applyBudgetColumns(value);
+        window.localStorage.setItem(budgetColumnsKey, value);
+    });
+}
