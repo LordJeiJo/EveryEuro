@@ -379,6 +379,7 @@ tbody tr {
 
 .summary-ring {
     --progress: 0;
+    --overflow: 0;
     --ring-color: var(--primary);
     width: 54px;
     height: 54px;
@@ -397,6 +398,20 @@ tbody tr {
     border-radius: 50%;
     background: var(--panel);
     border: 1px solid var(--border);
+}
+
+.summary-ring::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: conic-gradient(var(--ring-color) calc(var(--overflow) * 1%), transparent 0);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    opacity: 0;
+}
+
+.summary-ring.over::after {
+    opacity: 1;
 }
 
 .summary-ring span {

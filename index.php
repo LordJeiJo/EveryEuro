@@ -485,22 +485,26 @@ foreach ($budgetsByCategory as $categoryId => $budget) {
 }
 
 $budgetBalance = $budgetTotals['ingresos'] - $budgetTotals['gastos'];
-$diffBalance = $balance - $budgetBalance;
 
 function ratio_percent(float $actual, float $budget): int {
     if ($budget <= 0) {
         return 0;
     }
-    return (int)min(100, round(($actual / $budget) * 100));
+    return (int)round(($actual / $budget) * 100);
+}
+
+function ring_progress(int $ratio): int {
+    return min(100, max(0, $ratio));
+}
+
+function ring_overflow(int $ratio): int {
+    return max(0, $ratio - 100);
 }
 
 $summaryRatios = [
     'ingresos' => ratio_percent($ingresos, $budgetTotals['ingresos']),
     'gastos' => ratio_percent($realGastos, $budgetTotals['gastos']),
-    'balance' => ratio_percent(abs($balance), abs($budgetBalance)),
-    'budget_ingresos' => ratio_percent($ingresos, $budgetTotals['ingresos']),
-    'budget_gastos' => ratio_percent($realGastos, $budgetTotals['gastos']),
-    'diff' => ratio_percent(abs($diffBalance), abs($budgetBalance)),
+    'diferencia' => ratio_percent(abs($balance), abs($budgetBalance)),
 ];
 
 $summaryCategoriesStmt = $pdo->prepare('SELECT c.id, c.nombre, c.tipo, c.orden,
@@ -811,10 +815,12 @@ function current_url(array $override = []): string {
                 <div class="summary-card">
                     <div class="summary-card-header">
                         <div>
-                            <h3>Ingresos reales</h3>
+                            <h3>Ingresos</h3>
                             <p class="positive">€ <?= format_amount($ingresos) ?></p>
                         </div>
-                        <div class="summary-ring" style="--progress: <?= $summaryRatios['ingresos'] ?>; --ring-color: var(--success);">
+                        <?php $ingresosRatio = $summaryRatios['ingresos']; ?>
+                        <div class="summary-ring <?= $ingresosRatio > 100 ? 'over' : '' ?>"
+                             style="--progress: <?= ring_progress($ingresosRatio) ?>; --overflow: <?= ring_overflow($ingresosRatio) ?>; --ring-color: var(--success);">
                             <span><?= $summaryRatios['ingresos'] ?>%</span>
                         </div>
                     </div>
@@ -823,10 +829,12 @@ function current_url(array $override = []): string {
                 <div class="summary-card">
                     <div class="summary-card-header">
                         <div>
-                            <h3>Gastos reales</h3>
+                            <h3>Gastos</h3>
                             <p class="negative">€ <?= format_amount($realGastos) ?></p>
                         </div>
-                        <div class="summary-ring" style="--progress: <?= $summaryRatios['gastos'] ?>; --ring-color: var(--danger);">
+                        <?php $gastosRatio = $summaryRatios['gastos']; ?>
+                        <div class="summary-ring <?= $gastosRatio > 100 ? 'over' : '' ?>"
+                             style="--progress: <?= ring_progress($gastosRatio) ?>; --overflow: <?= ring_overflow($gastosRatio) ?>; --ring-color: var(--danger);">
                             <span><?= $summaryRatios['gastos'] ?>%</span>
                         </div>
                     </div>
@@ -835,50 +843,16 @@ function current_url(array $override = []): string {
                 <div class="summary-card">
                     <div class="summary-card-header">
                         <div>
-                            <h3>Balance real</h3>
+                            <h3>Diferencia</h3>
                             <p class="<?= $balance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($balance) ?></p>
                         </div>
-                        <div class="summary-ring" style="--progress: <?= $summaryRatios['balance'] ?>; --ring-color: var(--primary);">
-                            <span><?= $summaryRatios['balance'] ?>%</span>
+                        <?php $diffRatio = $summaryRatios['diferencia']; ?>
+                        <div class="summary-ring <?= $diffRatio > 100 ? 'over' : '' ?>"
+                             style="--progress: <?= ring_progress($diffRatio) ?>; --overflow: <?= ring_overflow($diffRatio) ?>; --ring-color: var(--primary);">
+                            <span><?= $summaryRatios['diferencia'] ?>%</span>
                         </div>
                     </div>
-                    <p class="summary-meta">Sobre € <?= format_amount($budgetBalance) ?> estimados.</p>
-                </div>
-                <div class="summary-card">
-                    <div class="summary-card-header">
-                        <div>
-                            <h3>Ingresos presupuestados</h3>
-                            <p>€ <?= format_amount($budgetTotals['ingresos']) ?></p>
-                        </div>
-                        <div class="summary-ring" style="--progress: <?= $summaryRatios['budget_ingresos'] ?>; --ring-color: var(--success);">
-                            <span><?= $summaryRatios['budget_ingresos'] ?>%</span>
-                        </div>
-                    </div>
-                    <p class="summary-meta">Real: € <?= format_amount($ingresos) ?>.</p>
-                </div>
-                <div class="summary-card">
-                    <div class="summary-card-header">
-                        <div>
-                            <h3>Gastos presupuestados</h3>
-                            <p>€ <?= format_amount($budgetTotals['gastos']) ?></p>
-                        </div>
-                        <div class="summary-ring" style="--progress: <?= $summaryRatios['budget_gastos'] ?>; --ring-color: var(--danger);">
-                            <span><?= $summaryRatios['budget_gastos'] ?>%</span>
-                        </div>
-                    </div>
-                    <p class="summary-meta">Real: € <?= format_amount($realGastos) ?>.</p>
-                </div>
-                <div class="summary-card">
-                    <div class="summary-card-header">
-                        <div>
-                            <h3>Diferencia neta</h3>
-                            <p class="<?= $diffBalance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($diffBalance) ?></p>
-                        </div>
-                        <div class="summary-ring" style="--progress: <?= $summaryRatios['diff'] ?>; --ring-color: var(--primary);">
-                            <span><?= $summaryRatios['diff'] ?>%</span>
-                        </div>
-                    </div>
-                    <p class="summary-meta">Comparado con € <?= format_amount($budgetBalance) ?>.</p>
+                    <p class="summary-meta">Sobre € <?= format_amount($budgetBalance) ?> presupuestados.</p>
                 </div>
             </div>
             <div class="table-wrapper">
