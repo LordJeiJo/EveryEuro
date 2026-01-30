@@ -504,8 +504,9 @@ function ring_overflow(int $ratio): int {
 $summaryRatios = [
     'ingresos' => ratio_percent($ingresos, $budgetTotals['ingresos']),
     'gastos' => ratio_percent($realGastos, $budgetTotals['gastos']),
-    'diferencia' => ratio_percent(abs($balance), abs($budgetBalance)),
 ];
+$balanceLabel = $balance > 0 ? 'Superávit' : ($balance < 0 ? 'Déficit' : 'Ajustado');
+$balanceTone = $balance > 0 ? 'positive' : ($balance < 0 ? 'negative' : 'neutral');
 
 $summaryCategoriesStmt = $pdo->prepare('SELECT c.id, c.nombre, c.tipo, c.orden,
     COALESCE(SUM(CASE WHEN m.importe > 0 THEN m.importe ELSE 0 END), 0) AS ingresos,
@@ -843,16 +844,12 @@ function current_url(array $override = []): string {
                 <div class="summary-card">
                     <div class="summary-card-header">
                         <div>
-                            <h3>Diferencia</h3>
-                            <p class="<?= $balance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($balance) ?></p>
+                            <h3>Saldo del mes</h3>
+                            <p class="summary-amount <?= $balanceTone ?>">€ <?= format_amount($balance) ?></p>
                         </div>
-                        <?php $diffRatio = $summaryRatios['diferencia']; ?>
-                        <div class="summary-ring <?= $diffRatio > 100 ? 'over' : '' ?>"
-                             style="--progress: <?= ring_progress($diffRatio) ?>; --overflow: <?= ring_overflow($diffRatio) ?>; --ring-color: var(--primary);">
-                            <span><?= $summaryRatios['diferencia'] ?>%</span>
-                        </div>
+                        <span class="summary-status <?= $balanceTone ?>"><?= $balanceLabel ?></span>
                     </div>
-                    <p class="summary-meta">Sobre € <?= format_amount($budgetBalance) ?> presupuestados.</p>
+                    <p class="summary-meta">Referencia presupuestaria: € <?= format_amount($budgetBalance) ?>.</p>
                 </div>
             </div>
             <div class="table-wrapper">
@@ -870,28 +867,39 @@ function current_url(array $override = []): string {
                         <?php foreach ($summaryCategories as $row):
                             $budget = $budgetsByCategory[(int)$row['id']]['planned_amount'] ?? null;
                             $actual = $row['tipo'] === 'ingreso' ? (float)$row['ingresos'] : abs((float)$row['gastos']);
-                            $diff = $budget !== null ? $actual - (float)$budget : null;
-                            $progress = $budget !== null && (float)$budget > 0
-                                ? min(100, ($actual / (float)$budget) * 100)
-                                : null;
-                            $isOverBudget = $budget !== null && (float)$budget > 0 && $actual > (float)$budget;
+                            $budgetValue = $budget !== null ? (float)$budget : 0.0;
+                            $hasPositiveBudget = $budgetValue > 0;
+                            $diff = $hasPositiveBudget ? $actual - $budgetValue : null;
+                            $progress = $hasPositiveBudget ? ($actual / $budgetValue) * 100 : null;
+                            $isOverBudget = $hasPositiveBudget && $actual > $budgetValue;
+                            $isOffBudget = !$hasPositiveBudget && $actual > 0;
+                            $isPending = $hasPositiveBudget && $actual == 0.0;
+                            $progressClamped = $progress !== null ? min(100, max(0, $progress)) : 0;
+                            $overflowProgress = $progress !== null ? max(0, $progress - 100) : 0;
                             ?>
                             <tr>
                                 <td><?= h($row['nombre']) ?></td>
-                                <td><?= $budget !== null ? '€ ' . format_amount((float)$budget) : '-' ?></td>
+                                <td><?= $budget !== null ? '€ ' . format_amount($budgetValue) : '-' ?></td>
                                 <td>€ <?= format_amount($actual) ?></td>
-                                <td class="<?= $diff === null ? '' : ($diff >= 0 ? 'positive' : 'negative') ?>">
+                                <td class="<?= $diff === null ? '' : ($isPending ? 'muted' : ($diff >= 0 ? 'positive' : 'negative')) ?>">
                                     <?= $diff !== null ? '€ ' . format_amount($diff) : '-' ?>
                                 </td>
                                 <td>
                                     <?php if ($progress === null): ?>
-                                        —
+                                        <?php if ($isOffBudget): ?>
+                                            <span class="status-badge warning">Fuera de presupuesto</span>
+                                        <?php else: ?>
+                                            —
+                                        <?php endif; ?>
                                     <?php else: ?>
                                         <div class="progress">
-                                            <div class="progress-bar <?= $isOverBudget ? 'over' : '' ?>">
-                                                <span style="width: <?= (int)$progress ?>%"></span>
+                                            <div class="progress-bar <?= $isOverBudget ? 'over' : '' ?> <?= $isPending ? 'pending' : '' ?>">
+                                                <span class="progress-fill" style="width: <?= $progressClamped ?>%"></span>
+                                                <?php if ($overflowProgress > 0): ?>
+                                                    <span class="progress-overflow" style="width: <?= min(100, $overflowProgress) ?>%"></span>
+                                                <?php endif; ?>
                                             </div>
-                                            <small class="muted"><?= (int)$progress ?>%</small>
+                                            <small class="<?= $isPending ? 'muted' : '' ?>"><?= (int)round($progress) ?>%</small>
                                         </div>
                                     <?php endif; ?>
                                 </td>
