@@ -3,6 +3,13 @@ const reviewHint = document.getElementById('reviewHint');
 const movementRows = document.querySelectorAll('[data-movement]');
 let reviewActive = false;
 
+if (window.location.hash) {
+    const target = document.querySelector(window.location.hash);
+    if (target) {
+        target.scrollIntoView({ block: 'center' });
+    }
+}
+
 function applyReviewFilter() {
     if (!movementRows.length) return;
     const cutoff = new Date();

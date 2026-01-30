@@ -106,6 +106,38 @@ if ($action === 'delete_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect_with_message('Movimiento eliminado.', 'index.php');
 }
 
+if ($action === 'bulk_review' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $monthValue = $_POST['month'] ?? date('Y-m');
+    $filters = [
+        'status' => $_POST['status'] ?? 'all',
+        'category' => $_POST['category'] ?? 'all',
+        'account' => $_POST['account'] ?? 'all',
+        'search' => trim($_POST['search'] ?? ''),
+    ];
+    $where = ['mes = ?', 'estado = ?'];
+    $params = [$monthValue, 'pendiente'];
+    if ($filters['category'] !== 'all' && $filters['category'] !== '') {
+        $where[] = 'categoria = ?';
+        $params[] = $filters['category'];
+    }
+    if ($filters['account'] !== 'all' && $filters['account'] !== '') {
+        $where[] = 'cuenta = ?';
+        $params[] = $filters['account'];
+    }
+    if ($filters['search'] !== '') {
+        $where[] = '(descripcion LIKE ? OR notas LIKE ? OR cuenta LIKE ?)';
+        $search = '%' . $filters['search'] . '%';
+        $params = array_merge($params, [$search, $search, $search]);
+    }
+    $stmt = $pdo->prepare('UPDATE movements SET estado = ? WHERE ' . implode(' AND ', $where));
+    $stmt->execute(array_merge(['revisado'], $params));
+    $_SESSION['flash'] = 'Movimientos marcados como revisados. ✔️';
+    $redirectTarget = safe_redirect_target($_POST['redirect'] ?? '', 'index.php?month=' . urlencode($monthValue));
+    header('Location: ' . $redirectTarget);
+    exit;
+}
+
 if ($action === 'update_status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $id = (int)($_POST['id'] ?? 0);
@@ -377,6 +409,14 @@ foreach ($categories as $cat) {
     $categoriesById[(int)$cat['id']] = $cat;
 }
 $lastAccount = $_SESSION['last_account'] ?? '';
+$quickEntryAccounts = $activeAccounts;
+if (empty($quickEntryAccounts)) {
+    $quickEntryAccounts = $accounts;
+}
+$defaultAccount = $lastAccount;
+if ($defaultAccount === '' && !empty($quickEntryAccounts)) {
+    $defaultAccount = $quickEntryAccounts[0]['nombre'];
+}
 $currentUri = $_SERVER['REQUEST_URI'] ?? app_url('index.php');
 
 $month = $_GET['month'] ?? date('Y-m');
@@ -410,6 +450,12 @@ if ($filters['search'] !== '') {
 $stmt = $pdo->prepare('SELECT * FROM movements WHERE ' . implode(' AND ', $where) . ' ORDER BY fecha DESC, id DESC');
 $stmt->execute($params);
 $movements = $stmt->fetchAll();
+$pendingCount = 0;
+foreach ($movements as $move) {
+    if ($move['estado'] === 'pendiente') {
+        $pendingCount++;
+    }
+}
 
 $totals = $pdo->prepare('SELECT SUM(CASE WHEN importe > 0 THEN importe ELSE 0 END) as ingresos, SUM(CASE WHEN importe < 0 THEN importe ELSE 0 END) as gastos FROM movements WHERE mes = ?');
 $totals->execute([$month]);
@@ -1053,6 +1099,22 @@ function current_url(array $override = []): string {
             </div>
             <form method="post" action="<?= h(app_url('index.php?action=add_movement')) ?>" class="quick-entry-form">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <div class="quick-entry-row account">
+                    <label>
+                        Cuenta
+                        <select name="cuenta" required>
+                            <?php if (empty($quickEntryAccounts)): ?>
+                                <option value="" selected>Sin cuentas activas</option>
+                            <?php else: ?>
+                                <?php foreach ($quickEntryAccounts as $account): ?>
+                                    <option value="<?= h($account['nombre']) ?>" <?= $account['nombre'] === $defaultAccount ? 'selected' : '' ?>>
+                                        <?= h($account['nombre']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </select>
+                    </label>
+                </div>
                 <div class="quick-entry-row primary">
                     <label>
                         Fecha
@@ -1067,18 +1129,7 @@ function current_url(array $override = []): string {
                         <input type="number" step="0.01" name="importe" placeholder="-24,90" required>
                     </label>
                 </div>
-                <div class="quick-entry-row secondary">
-                    <label>
-                        Cuenta
-                        <select name="cuenta" required>
-                            <option value="" <?= $lastAccount === '' ? 'selected' : '' ?>>Elige cuenta...</option>
-                            <?php foreach ($activeAccounts as $account): ?>
-                                <option value="<?= h($account['nombre']) ?>" <?= $account['nombre'] === $lastAccount ? 'selected' : '' ?>>
-                                    <?= h($account['nombre']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
+                <div class="quick-entry-row category">
                     <label>
                         Categoría sugerida
                         <select name="categoria" id="categorySelect" required>
@@ -1117,7 +1168,7 @@ function current_url(array $override = []): string {
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" id="movements">
             <div class="panel-header">
                 <div>
                     <h2>Tu mes en números</h2>
@@ -1125,6 +1176,18 @@ function current_url(array $override = []): string {
                 </div>
                 <div class="panel-actions">
                     <button type="button" class="ghost" id="reviewWeek">Revisar semana</button>
+                    <?php if ($pendingCount > 0): ?>
+                        <form method="post" action="<?= h(app_url('index.php?action=bulk_review')) ?>" class="inline">
+                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                            <input type="hidden" name="month" value="<?= h($month) ?>">
+                            <input type="hidden" name="status" value="<?= h($filters['status']) ?>">
+                            <input type="hidden" name="category" value="<?= h($filters['category']) ?>">
+                            <input type="hidden" name="account" value="<?= h($filters['account']) ?>">
+                            <input type="hidden" name="search" value="<?= h($filters['search']) ?>">
+                            <input type="hidden" name="redirect" value="<?= h($currentUri . '#movements') ?>">
+                            <button type="submit" class="ghost">Marcar todo como revisado</button>
+                        </form>
+                    <?php endif; ?>
                     <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
                         <input type="month" name="month" value="<?= h($month) ?>">
                         <select name="status">

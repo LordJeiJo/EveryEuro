@@ -166,6 +166,12 @@ textarea {
     transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(36%) sepia(12%) saturate(390%) hue-rotate(177deg) brightness(94%);
+    opacity: 0.85;
+    cursor: pointer;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -517,8 +523,12 @@ menu {
     grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1.6fr) minmax(140px, 0.6fr);
 }
 
-.quick-entry-row.secondary {
-    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+.quick-entry-row.account {
+    grid-template-columns: minmax(240px, 1fr);
+}
+
+.quick-entry-row.category {
+    grid-template-columns: minmax(220px, 1fr) auto;
 }
 
 .quick-entry-row .wide {
@@ -806,7 +816,8 @@ button:hover,
         grid-template-columns: 1fr 1fr;
     }
     .quick-entry-row.primary,
-    .quick-entry-row.secondary {
+    .quick-entry-row.account,
+    .quick-entry-row.category {
         grid-template-columns: 1fr;
     }
     .quick-entry-row .wide {
