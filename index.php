@@ -318,9 +318,6 @@ if ($action === 'export_backup') {
 
 if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
-    if (!isset($_POST['confirm_import'])) {
-        redirect_with_message('Debes confirmar la importación.', 'index.php?page=backup');
-    }
     if (!isset($_FILES['backup']) || $_FILES['backup']['error'] !== UPLOAD_ERR_OK) {
         redirect_with_message('Archivo inválido.', 'index.php?page=backup');
     }
@@ -817,7 +814,7 @@ function current_url(array $override = []): string {
                     <div class="summary-card-header">
                         <div>
                             <h3>Ingresos</h3>
-                            <p class="positive">€ <?= format_amount($ingresos) ?></p>
+                            <p class="positive"><?= format_amount($ingresos) ?> €</p>
                         </div>
                         <?php $ingresosRatio = $summaryRatios['ingresos']; ?>
                         <div class="summary-ring <?= $ingresosRatio > 100 ? 'over' : '' ?>"
@@ -825,13 +822,13 @@ function current_url(array $override = []): string {
                             <span><?= $summaryRatios['ingresos'] ?>%</span>
                         </div>
                     </div>
-                    <p class="summary-meta">Sobre € <?= format_amount($budgetTotals['ingresos']) ?> presupuestados.</p>
+                    <p class="summary-meta">Sobre <?= format_amount($budgetTotals['ingresos']) ?> € presupuestados.</p>
                 </div>
                 <div class="summary-card">
                     <div class="summary-card-header">
                         <div>
                             <h3>Gastos</h3>
-                            <p class="negative">€ <?= format_amount($realGastos) ?></p>
+                            <p class="negative"><?= format_amount($realGastos) ?> €</p>
                         </div>
                         <?php $gastosRatio = $summaryRatios['gastos']; ?>
                         <div class="summary-ring <?= $gastosRatio > 100 ? 'over' : '' ?>"
@@ -839,17 +836,17 @@ function current_url(array $override = []): string {
                             <span><?= $summaryRatios['gastos'] ?>%</span>
                         </div>
                     </div>
-                    <p class="summary-meta">Sobre € <?= format_amount($budgetTotals['gastos']) ?> presupuestados.</p>
+                    <p class="summary-meta">Sobre <?= format_amount($budgetTotals['gastos']) ?> € presupuestados.</p>
                 </div>
                 <div class="summary-card">
                     <div class="summary-card-header">
                         <div>
                             <h3>Saldo del mes</h3>
-                            <p class="summary-amount <?= $balanceTone ?>">€ <?= format_amount($balance) ?></p>
+                            <p class="summary-amount <?= $balanceTone ?>"><?= format_amount($balance) ?> €</p>
                         </div>
                         <span class="summary-status <?= $balanceTone ?>"><?= $balanceLabel ?></span>
                     </div>
-                    <p class="summary-meta">Referencia presupuestaria: € <?= format_amount($budgetBalance) ?>.</p>
+                    <p class="summary-meta">Diferencia (debería de ser cero): <?= format_amount($budgetBalance) ?> €.</p>
                 </div>
             </div>
             <div class="table-wrapper">
@@ -879,10 +876,10 @@ function current_url(array $override = []): string {
                             ?>
                             <tr>
                                 <td><?= h($row['nombre']) ?></td>
-                                <td><?= $budget !== null ? '€ ' . format_amount($budgetValue) : '-' ?></td>
-                                <td>€ <?= format_amount($actual) ?></td>
+                                <td><?= $budget !== null ? format_amount($budgetValue) . ' €' : '-' ?></td>
+                                <td><?= format_amount($actual) ?> €</td>
                                 <td class="<?= $diff === null ? '' : ($isPending ? 'muted' : ($diff >= 0 ? 'positive' : 'negative')) ?>">
-                                    <?= $diff !== null ? '€ ' . format_amount($diff) : '-' ?>
+                                    <?= $diff !== null ? format_amount($diff) . ' €' : '-' ?>
                                 </td>
                                 <td>
                                     <?php if ($progress === null): ?>
@@ -966,15 +963,15 @@ function current_url(array $override = []): string {
                             <div class="budget-metrics">
                                 <div>
                                     <span>Presupuesto</span>
-                                    <strong>€ <?= format_amount($planned) ?></strong>
+                                    <strong><?= format_amount($planned) ?> €</strong>
                                 </div>
                                 <div>
                                     <span>Real</span>
-                                    <strong>€ <?= format_amount($actual) ?></strong>
+                                    <strong><?= format_amount($actual) ?> €</strong>
                                 </div>
                                 <div>
                                     <span>Te quedan</span>
-                                    <strong class="<?= $remaining >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($remaining) ?></strong>
+                                    <strong class="<?= $remaining >= 0 ? 'positive' : 'negative' ?>"><?= format_amount($remaining) ?> €</strong>
                                 </div>
                             </div>
                             <div class="budget-bar <?= $remaining < 0 ? 'over' : '' ?>" role="progressbar" aria-valuenow="<?= (int)$progress ?>" aria-valuemin="0" aria-valuemax="100">
@@ -1007,7 +1004,12 @@ function current_url(array $override = []): string {
                 <div class="backup-card">
                     <h3>Exportar</h3>
                     <p class="muted">Descarga un archivo JSON con todos tus movimientos, categorías y presupuestos.</p>
-                    <a href="<?= h(app_url('index.php?action=export_backup')) ?>" class="primary">Exportar copia</a>
+                    <a href="<?= h(app_url('index.php?action=export_backup')) ?>" class="primary backup-icon" aria-label="Exportar copia">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42-4.7 4.7-4.7-4.7 1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 14h14v2H5v-2Z" fill="currentColor"/>
+                        </svg>
+                        <span class="sr-only">Exportar copia</span>
+                    </a>
                 </div>
                 <div class="backup-card backup-import">
                     <h3>Importar</h3>
@@ -1015,11 +1017,12 @@ function current_url(array $override = []): string {
                     <form method="post" action="<?= h(app_url('index.php?action=import_backup')) ?>" enctype="multipart/form-data" class="backup-form">
                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                         <input type="file" name="backup" accept="application/json" required>
-                        <label class="switch">
-                            <input type="checkbox" name="confirm_import">
-                            <span>Entiendo que esto sobrescribe los datos actuales</span>
-                        </label>
-                        <button type="submit" class="danger">Importar</button>
+                        <button type="submit" class="danger backup-icon" aria-label="Importar copia">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M12 20a1 1 0 0 1-1-1v-8.59l-2.3 2.3-1.4-1.42 4.7-4.7 4.7 4.7-1.4 1.42-2.3-2.3V19a1 1 0 0 1-1 1Zm-7-14h14V4H5v2Z" fill="currentColor"/>
+                            </svg>
+                            <span class="sr-only">Importar copia</span>
+                        </button>
                     </form>
                 </div>
             </div>
@@ -1154,15 +1157,15 @@ function current_url(array $override = []): string {
             <div class="status-cards">
                 <div class="status-card">
                     <span>Ingresos</span>
-                    <strong class="positive">€ <?= format_amount($ingresos) ?></strong>
+                    <strong class="positive"><?= format_amount($ingresos) ?> €</strong>
                 </div>
                 <div class="status-card">
                     <span>Gastos</span>
-                    <strong class="negative">€ <?= format_amount($realGastos) ?></strong>
+                    <strong class="negative"><?= format_amount($realGastos) ?> €</strong>
                 </div>
                 <div class="status-card">
                     <span>Balance</span>
-                    <strong class="<?= $balance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($balance) ?></strong>
+                    <strong class="<?= $balance >= 0 ? 'positive' : 'negative' ?>"><?= format_amount($balance) ?> €</strong>
                 </div>
             </div>
         </section>
@@ -1240,7 +1243,7 @@ function current_url(array $override = []): string {
                                         <div class="muted"><?= h($move['notas']) ?></div>
                                     <?php endif; ?>
                                 </td>
-                                <td class="amount <?= $amountValue >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount(abs($amountValue)) ?></td>
+                                <td class="amount <?= $amountValue >= 0 ? 'positive' : 'negative' ?>"><?= format_amount(abs($amountValue)) ?> €</td>
                                 <td>
                                     <form method="post" action="<?= h(app_url('index.php?action=quick_category')) ?>" class="inline">
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
