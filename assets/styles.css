@@ -283,6 +283,33 @@ tbody tr {
     transition: background 0.2s ease;
 }
 
+.movements-table {
+    table-layout: fixed;
+}
+
+.movements-table th:nth-child(1),
+.movements-table td:nth-child(1) {
+    width: 110px;
+    white-space: nowrap;
+}
+
+.movements-table th:nth-child(2),
+.movements-table td:nth-child(2) {
+    width: 28%;
+}
+
+.movements-table th:nth-child(3),
+.movements-table td:nth-child(3) {
+    width: 120px;
+    white-space: nowrap;
+}
+
+.movements-table th:nth-child(7),
+.movements-table td:nth-child(7) {
+    width: 130px;
+    white-space: nowrap;
+}
+
 .amount {
     font-weight: 700;
 }
@@ -554,6 +581,41 @@ menu {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+}
+
+.backup-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.backup-card {
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.12), rgba(15, 23, 42, 0.6));
+    padding: 18px;
+    display: grid;
+    gap: 12px;
+    box-shadow: var(--shadow-soft);
+}
+
+.backup-card h3 {
+    font-size: 1rem;
+}
+
+.backup-card .primary,
+.backup-card .danger {
+    width: fit-content;
+}
+
+.backup-card.backup-import {
+    background: linear-gradient(135deg, rgba(248, 113, 113, 0.12), rgba(15, 23, 42, 0.6));
+}
+
+.backup-form {
+    display: grid;
+    gap: 12px;
 }
 
 .pill-group {
@@ -841,6 +903,13 @@ button:hover,
     gap: 8px;
 }
 
+.progress-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
 .progress-bar {
     position: relative;
     height: 8px;
@@ -866,13 +935,8 @@ button:hover,
     background: var(--panel-muted);
 }
 
-.progress-bar .progress-overflow {
-    position: absolute;
-    top: -1px;
-    left: calc(100% - 1px);
-    height: 8px;
-    background: var(--danger);
-    border-radius: 999px;
+.progress-bar.overflow .progress-fill {
+    background: rgba(248, 113, 113, 0.55);
 }
 
 .status-badge {
@@ -918,6 +982,9 @@ button:hover,
     }
     .quick-entry-row button {
         grid-column: 1 / -1;
+    }
+    .backup-grid {
+        grid-template-columns: 1fr;
     }
 }
 
