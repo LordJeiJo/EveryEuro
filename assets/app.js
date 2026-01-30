@@ -1,6 +1,7 @@
 const reviewButton = document.getElementById('reviewWeek');
 const reviewHint = document.getElementById('reviewHint');
 const movementRows = document.querySelectorAll('[data-movement]');
+const statusForms = document.querySelectorAll('[data-status-form]');
 let reviewActive = false;
 
 if (window.location.hash) {
@@ -9,6 +10,21 @@ if (window.location.hash) {
         target.scrollIntoView({ block: 'center' });
     }
 }
+
+const savedScroll = window.sessionStorage.getItem('movement-scroll');
+if (savedScroll !== null) {
+    window.sessionStorage.removeItem('movement-scroll');
+    requestAnimationFrame(() => {
+        const scrollValue = Number.parseInt(savedScroll, 10);
+        window.scrollTo({ top: Number.isNaN(scrollValue) ? 0 : scrollValue });
+    });
+}
+
+statusForms.forEach((form) => {
+    form.addEventListener('submit', () => {
+        window.sessionStorage.setItem('movement-scroll', String(window.scrollY));
+    });
+});
 
 function applyReviewFilter() {
     if (!movementRows.length) return;

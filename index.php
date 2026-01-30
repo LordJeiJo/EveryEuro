@@ -414,8 +414,9 @@ if (empty($quickEntryAccounts)) {
     $quickEntryAccounts = $accounts;
 }
 $defaultAccount = $lastAccount;
-if ($defaultAccount === '' && !empty($quickEntryAccounts)) {
-    $defaultAccount = $quickEntryAccounts[0]['nombre'];
+$quickEntryAccountNames = array_map(static fn(array $account): string => $account['nombre'], $quickEntryAccounts);
+if ($defaultAccount === '' || !in_array($defaultAccount, $quickEntryAccountNames, true)) {
+    $defaultAccount = $quickEntryAccounts[0]['nombre'] ?? '';
 }
 $currentUri = $_SERVER['REQUEST_URI'] ?? app_url('index.php');
 
@@ -1259,7 +1260,7 @@ function current_url(array $override = []): string {
                                     <span class="account-pill"><?= $move['cuenta'] !== '' ? h($move['cuenta']) : '—' ?></span>
                                 </td>
                                 <td>
-                                    <form method="post" action="<?= h(app_url('index.php?action=update_status')) ?>" class="inline">
+                                    <form method="post" action="<?= h(app_url('index.php?action=update_status')) ?>" class="inline status-form" data-status-form>
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int)$move['id'] ?>">
                                         <input type="hidden" name="estado" value="<?= $move['estado'] === 'pendiente' ? 'revisado' : 'pendiente' ?>">

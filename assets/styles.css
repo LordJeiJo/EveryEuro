@@ -166,9 +166,13 @@ textarea {
     transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
+input[type="date"] {
+    color-scheme: dark;
+}
+
 input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(36%) sepia(12%) saturate(390%) hue-rotate(177deg) brightness(94%);
-    opacity: 0.85;
+    filter: invert(86%) sepia(14%) saturate(120%) hue-rotate(180deg) brightness(108%);
+    opacity: 0.9;
     cursor: pointer;
 }
 
@@ -303,6 +307,15 @@ tbody tr {
 .login {
     max-width: 420px;
     margin: 40px auto;
+}
+
+.login form {
+    display: grid;
+    gap: 16px;
+}
+
+.login .primary {
+    margin-top: 6px;
 }
 
 .muted {
