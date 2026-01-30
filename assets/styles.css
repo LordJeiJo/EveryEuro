@@ -307,9 +307,35 @@ tbody tr {
     display: inline;
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.icon-button {
+    padding: 8px;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-button svg {
+    width: 16px;
+    height: 16px;
+}
+
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
     gap: 16px;
     margin: 16px 0;
 }
@@ -731,12 +757,18 @@ button:hover,
 }
 
 @media (max-width: 1024px) {
+    .summary-grid {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+    }
     .budget-grid {
         grid-template-columns: repeat(2, minmax(220px, 1fr));
     }
 }
 
 @media (max-width: 640px) {
+    .summary-grid {
+        grid-template-columns: repeat(1, minmax(220px, 1fr));
+    }
     .budget-grid {
         grid-template-columns: repeat(1, minmax(220px, 1fr));
     }

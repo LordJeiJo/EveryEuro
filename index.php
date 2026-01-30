@@ -551,11 +551,21 @@ function current_url(array $override = []): string {
                                 <td><?= $cat['activa'] ? 'Sí' : 'No' ?></td>
                                 <td><?= $cat['keywords'] !== '' ? h($cat['keywords']) : '—' ?></td>
                                 <td>
-                                    <button class="ghost" type="button" data-edit='<?= h(json_encode($cat)) ?>'>Editar</button>
+                                    <button class="ghost icon-button" type="button" data-edit='<?= h(json_encode($cat)) ?>' aria-label="Editar" title="Editar">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M15.232 5.232a2.5 2.5 0 0 1 3.536 3.536L8.5 19.036l-4.5 1 1-4.5 10.232-10.304Zm2.12 1.414a.5.5 0 0 0-.707 0l-1.06 1.06 1.414 1.415 1.06-1.061a.5.5 0 0 0 0-.707l-.707-.707Zm-2.475 2.475L6.5 17.5l-0.5 2 2-0.5 8.379-8.379-1.414-1.415Z" fill="currentColor"/>
+                                        </svg>
+                                        <span class="sr-only">Editar</span>
+                                    </button>
                                     <form method="post" action="<?= h(app_url('index.php?action=delete_category')) ?>" class="inline">
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int)$cat['id'] ?>">
-                                        <button class="danger" type="submit">Eliminar</button>
+                                        <button class="danger icon-button" type="submit" aria-label="Eliminar" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12h12a2 2 0 0 0 2-2V9H4v10a2 2 0 0 0 2 2Z" fill="currentColor"/>
+                                            </svg>
+                                            <span class="sr-only">Eliminar</span>
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
@@ -631,11 +641,21 @@ function current_url(array $override = []): string {
                                 <td><?= h((string)$account['orden']) ?></td>
                                 <td><?= $account['activa'] ? 'Sí' : 'No' ?></td>
                                 <td>
-                                    <button class="ghost" type="button" data-edit-account='<?= h(json_encode($account)) ?>'>Editar</button>
+                                    <button class="ghost icon-button" type="button" data-edit-account='<?= h(json_encode($account)) ?>' aria-label="Editar" title="Editar">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M15.232 5.232a2.5 2.5 0 0 1 3.536 3.536L8.5 19.036l-4.5 1 1-4.5 10.232-10.304Zm2.12 1.414a.5.5 0 0 0-.707 0l-1.06 1.06 1.414 1.415 1.06-1.061a.5.5 0 0 0 0-.707l-.707-.707Zm-2.475 2.475L6.5 17.5l-0.5 2 2-0.5 8.379-8.379-1.414-1.415Z" fill="currentColor"/>
+                                        </svg>
+                                        <span class="sr-only">Editar</span>
+                                    </button>
                                     <form method="post" action="<?= h(app_url('index.php?action=delete_account')) ?>" class="inline">
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int)$account['id'] ?>">
-                                        <button class="danger" type="submit">Eliminar</button>
+                                        <button class="danger icon-button" type="submit" aria-label="Eliminar" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12h12a2 2 0 0 0 2-2V9H4v10a2 2 0 0 0 2 2Z" fill="currentColor"/>
+                                            </svg>
+                                            <span class="sr-only">Eliminar</span>
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
@@ -1123,11 +1143,21 @@ function current_url(array $override = []): string {
                                     </form>
                                 </td>
                                 <td>
-                                    <a class="ghost" href="<?= h(app_url('index.php?page=edit_movement&id=' . (int)$move['id'])) ?>">Editar</a>
+                                    <a class="ghost icon-button" href="<?= h(app_url('index.php?page=edit_movement&id=' . (int)$move['id'])) ?>" aria-label="Editar" title="Editar">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                            <path d="M15.232 5.232a2.5 2.5 0 0 1 3.536 3.536L8.5 19.036l-4.5 1 1-4.5 10.232-10.304Zm2.12 1.414a.5.5 0 0 0-.707 0l-1.06 1.06 1.414 1.415 1.06-1.061a.5.5 0 0 0 0-.707l-.707-.707Zm-2.475 2.475L6.5 17.5l-0.5 2 2-0.5 8.379-8.379-1.414-1.415Z" fill="currentColor"/>
+                                        </svg>
+                                        <span class="sr-only">Editar</span>
+                                    </a>
                                     <form method="post" action="<?= h(app_url('index.php?action=delete_movement')) ?>" class="inline">
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int)$move['id'] ?>">
-                                        <button class="danger" type="submit">Eliminar</button>
+                                        <button class="danger icon-button" type="submit" aria-label="Eliminar" title="Eliminar">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12h12a2 2 0 0 0 2-2V9H4v10a2 2 0 0 0 2 2Z" fill="currentColor"/>
+                                            </svg>
+                                            <span class="sr-only">Eliminar</span>
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
