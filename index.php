@@ -411,6 +411,22 @@ foreach ($budgetsByCategory as $categoryId => $budget) {
 $budgetBalance = $budgetTotals['ingresos'] - $budgetTotals['gastos'];
 $diffBalance = $balance - $budgetBalance;
 
+function ratio_percent(float $actual, float $budget): int {
+    if ($budget <= 0) {
+        return 0;
+    }
+    return (int)min(100, round(($actual / $budget) * 100));
+}
+
+$summaryRatios = [
+    'ingresos' => ratio_percent($ingresos, $budgetTotals['ingresos']),
+    'gastos' => ratio_percent($realGastos, $budgetTotals['gastos']),
+    'balance' => ratio_percent(abs($balance), abs($budgetBalance)),
+    'budget_ingresos' => ratio_percent($ingresos, $budgetTotals['ingresos']),
+    'budget_gastos' => ratio_percent($realGastos, $budgetTotals['gastos']),
+    'diff' => ratio_percent(abs($diffBalance), abs($budgetBalance)),
+];
+
 $summaryCategoriesStmt = $pdo->prepare('SELECT c.id, c.nombre, c.tipo, c.orden,
     COALESCE(SUM(CASE WHEN m.importe > 0 THEN m.importe ELSE 0 END), 0) AS ingresos,
     COALESCE(SUM(CASE WHEN m.importe < 0 THEN m.importe ELSE 0 END), 0) AS gastos
@@ -665,28 +681,76 @@ function current_url(array $override = []): string {
             </div>
             <div class="summary-grid">
                 <div class="summary-card">
-                    <h3>Ingresos reales</h3>
-                    <p class="positive">€ <?= format_amount($ingresos) ?></p>
+                    <div class="summary-card-header">
+                        <div>
+                            <h3>Ingresos reales</h3>
+                            <p class="positive">€ <?= format_amount($ingresos) ?></p>
+                        </div>
+                        <div class="summary-ring" style="--progress: <?= $summaryRatios['ingresos'] ?>; --ring-color: var(--success);">
+                            <span><?= $summaryRatios['ingresos'] ?>%</span>
+                        </div>
+                    </div>
+                    <p class="summary-meta">Sobre € <?= format_amount($budgetTotals['ingresos']) ?> presupuestados.</p>
                 </div>
                 <div class="summary-card">
-                    <h3>Gastos reales</h3>
-                    <p class="negative">€ <?= format_amount($realGastos) ?></p>
+                    <div class="summary-card-header">
+                        <div>
+                            <h3>Gastos reales</h3>
+                            <p class="negative">€ <?= format_amount($realGastos) ?></p>
+                        </div>
+                        <div class="summary-ring" style="--progress: <?= $summaryRatios['gastos'] ?>; --ring-color: var(--danger);">
+                            <span><?= $summaryRatios['gastos'] ?>%</span>
+                        </div>
+                    </div>
+                    <p class="summary-meta">Sobre € <?= format_amount($budgetTotals['gastos']) ?> presupuestados.</p>
                 </div>
                 <div class="summary-card">
-                    <h3>Balance real</h3>
-                    <p class="<?= $balance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($balance) ?></p>
+                    <div class="summary-card-header">
+                        <div>
+                            <h3>Balance real</h3>
+                            <p class="<?= $balance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($balance) ?></p>
+                        </div>
+                        <div class="summary-ring" style="--progress: <?= $summaryRatios['balance'] ?>; --ring-color: var(--primary);">
+                            <span><?= $summaryRatios['balance'] ?>%</span>
+                        </div>
+                    </div>
+                    <p class="summary-meta">Sobre € <?= format_amount($budgetBalance) ?> estimados.</p>
                 </div>
                 <div class="summary-card">
-                    <h3>Ingresos presupuestados</h3>
-                    <p>€ <?= format_amount($budgetTotals['ingresos']) ?></p>
+                    <div class="summary-card-header">
+                        <div>
+                            <h3>Ingresos presupuestados</h3>
+                            <p>€ <?= format_amount($budgetTotals['ingresos']) ?></p>
+                        </div>
+                        <div class="summary-ring" style="--progress: <?= $summaryRatios['budget_ingresos'] ?>; --ring-color: var(--success);">
+                            <span><?= $summaryRatios['budget_ingresos'] ?>%</span>
+                        </div>
+                    </div>
+                    <p class="summary-meta">Real: € <?= format_amount($ingresos) ?>.</p>
                 </div>
                 <div class="summary-card">
-                    <h3>Gastos presupuestados</h3>
-                    <p>€ <?= format_amount($budgetTotals['gastos']) ?></p>
+                    <div class="summary-card-header">
+                        <div>
+                            <h3>Gastos presupuestados</h3>
+                            <p>€ <?= format_amount($budgetTotals['gastos']) ?></p>
+                        </div>
+                        <div class="summary-ring" style="--progress: <?= $summaryRatios['budget_gastos'] ?>; --ring-color: var(--danger);">
+                            <span><?= $summaryRatios['budget_gastos'] ?>%</span>
+                        </div>
+                    </div>
+                    <p class="summary-meta">Real: € <?= format_amount($realGastos) ?>.</p>
                 </div>
                 <div class="summary-card">
-                    <h3>Diferencia neta</h3>
-                    <p class="<?= $diffBalance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($diffBalance) ?></p>
+                    <div class="summary-card-header">
+                        <div>
+                            <h3>Diferencia neta</h3>
+                            <p class="<?= $diffBalance >= 0 ? 'positive' : 'negative' ?>">€ <?= format_amount($diffBalance) ?></p>
+                        </div>
+                        <div class="summary-ring" style="--progress: <?= $summaryRatios['diff'] ?>; --ring-color: var(--primary);">
+                            <span><?= $summaryRatios['diff'] ?>%</span>
+                        </div>
+                    </div>
+                    <p class="summary-meta">Comparado con € <?= format_amount($budgetBalance) ?>.</p>
                 </div>
             </div>
             <div class="table-wrapper">
@@ -754,6 +818,14 @@ function current_url(array $override = []): string {
                         <input type="hidden" name="confirm_overwrite" value="0">
                         <button type="submit" class="ghost" id="copyBudgets">Copiar del mes anterior</button>
                     </form>
+                    <div class="budget-controls">
+                        <label for="budgetColumns">Tarjetas por fila</label>
+                        <select id="budgetColumns">
+                            <option value="2">2</option>
+                            <option value="3" selected>3</option>
+                            <option value="4">4</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <form method="post" action="<?= h(app_url('index.php?action=save_budgets')) ?>" class="budget-form">
@@ -798,10 +870,6 @@ function current_url(array $override = []): string {
                                 <label>
                                     Presupuesto
                                     <input type="number" step="0.01" min="0" name="planned_amount[<?= (int)$cat['id'] ?>]" value="<?= h($budget['planned_amount'] ?? '') ?>" placeholder="0,00">
-                                </label>
-                                <label>
-                                    Nota rápida
-                                    <input type="text" name="notes[<?= (int)$cat['id'] ?>]" value="<?= h($budget['notes'] ?? '') ?>" placeholder="Ej: Semana santa">
                                 </label>
                                 <button class="ghost" type="submit" name="save_single" value="<?= (int)$cat['id'] ?>">Guardar</button>
                             </div>
