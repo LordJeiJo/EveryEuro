@@ -16,6 +16,28 @@ function redirect_with_message(string $message, string $location = 'index.php'):
     exit;
 }
 
+function safe_redirect_target(string $target, string $fallback = 'index.php'): string {
+    $fallbackUrl = app_url($fallback);
+    $target = trim($target);
+    if ($target === '') {
+        return $fallbackUrl;
+    }
+    $parts = parse_url($target);
+    if ($parts === false || isset($parts['scheme']) || isset($parts['host'])) {
+        return $fallbackUrl;
+    }
+    $path = $parts['path'] ?? '';
+    if ($path === '') {
+        return $fallbackUrl;
+    }
+    if ($path[0] !== '/') {
+        $path = '/' . $path;
+    }
+    $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+    $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
+    return $path . $query . $fragment;
+}
+
 function save_budget(PDO $pdo, string $month, int $categoryId, ?string $plannedRaw, ?string $notesRaw): void {
     $plannedRaw = $plannedRaw ?? '';
     $notes = trim($notesRaw ?? '');
@@ -72,6 +94,7 @@ if ($action === 'add_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $stmt = $pdo->prepare('INSERT INTO movements (fecha, descripcion, importe, categoria, notas, estado, mes, cuenta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([$fecha, $descripcion, $importe, $categoria, $notas, $estado, $mes, $cuenta]);
+    $_SESSION['last_account'] = $cuenta;
     redirect_with_message('Apuntado. ¡Listo!', 'index.php?month=' . urlencode($mes));
 }
 
@@ -89,7 +112,10 @@ if ($action === 'update_status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $estado = $_POST['estado'] === 'revisado' ? 'revisado' : 'pendiente';
     $stmt = $pdo->prepare('UPDATE movements SET estado = ? WHERE id = ?');
     $stmt->execute([$estado, $id]);
-    redirect_with_message('Estado actualizado. ✔️', 'index.php');
+    $_SESSION['flash'] = 'Estado actualizado. ✔️';
+    $redirectTarget = safe_redirect_target($_POST['redirect'] ?? '', 'index.php');
+    header('Location: ' . $redirectTarget);
+    exit;
 }
 
 if ($action === 'quick_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -117,6 +143,7 @@ if ($action === 'save_movement' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $stmt = $pdo->prepare('UPDATE movements SET fecha = ?, descripcion = ?, importe = ?, categoria = ?, notas = ?, estado = ?, mes = ?, cuenta = ? WHERE id = ?');
     $stmt->execute([$fecha, $descripcion, $importe, $categoria, $notas, $estado, $mes, $cuenta, $id]);
+    $_SESSION['last_account'] = $cuenta;
     redirect_with_message('Movimiento actualizado.', 'index.php?month=' . urlencode($mes));
 }
 
@@ -349,6 +376,8 @@ $categoriesById = [];
 foreach ($categories as $cat) {
     $categoriesById[(int)$cat['id']] = $cat;
 }
+$lastAccount = $_SESSION['last_account'] ?? '';
+$currentUri = $_SERVER['REQUEST_URI'] ?? app_url('index.php');
 
 $month = $_GET['month'] ?? date('Y-m');
 $filters = [
@@ -1042,9 +1071,11 @@ function current_url(array $override = []): string {
                     <label>
                         Cuenta
                         <select name="cuenta" required>
-                            <option value="">Elige cuenta...</option>
+                            <option value="" <?= $lastAccount === '' ? 'selected' : '' ?>>Elige cuenta...</option>
                             <?php foreach ($activeAccounts as $account): ?>
-                                <option value="<?= h($account['nombre']) ?>"><?= h($account['nombre']) ?></option>
+                                <option value="<?= h($account['nombre']) ?>" <?= $account['nombre'] === $lastAccount ? 'selected' : '' ?>>
+                                    <?= h($account['nombre']) ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </label>
@@ -1139,7 +1170,7 @@ function current_url(array $override = []): string {
                         <?php foreach ($movements as $move): ?>
                             <?php $isPending = $move['estado'] === 'pendiente'; ?>
                             <?php $amountValue = (float)$move['importe']; ?>
-                            <tr class="movement-row <?= $isPending ? 'pending' : 'reviewed' ?>" data-movement data-status="<?= h($move['estado']) ?>" data-date="<?= h($move['fecha']) ?>">
+                            <tr id="movement-<?= (int)$move['id'] ?>" class="movement-row <?= $isPending ? 'pending' : 'reviewed' ?>" data-movement data-status="<?= h($move['estado']) ?>" data-date="<?= h($move['fecha']) ?>">
                                 <td><?= h($move['fecha']) ?></td>
                                 <td>
                                     <strong><?= h($move['descripcion']) ?></strong>
@@ -1169,6 +1200,7 @@ function current_url(array $override = []): string {
                                         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                         <input type="hidden" name="id" value="<?= (int)$move['id'] ?>">
                                         <input type="hidden" name="estado" value="<?= $move['estado'] === 'pendiente' ? 'revisado' : 'pendiente' ?>">
+                                        <input type="hidden" name="redirect" value="<?= h($currentUri . '#movement-' . (int)$move['id']) ?>">
                                         <button class="status-pill <?= $isPending ? 'pending' : 'reviewed' ?>" type="submit">
                                             <?php if ($isPending): ?>
                                                 <svg class="status-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
