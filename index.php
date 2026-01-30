@@ -555,12 +555,12 @@ function current_url(array $override = []): string {
         </div>
         <?php if (is_logged_in()): ?>
         <nav class="nav">
-            <a href="<?= h(app_url('index.php')) ?>" class="<?= $page === 'movements' ? 'active' : '' ?>">Gastos</a>
+            <a href="<?= h(app_url('index.php')) ?>" class="<?= $page === 'movements' ? 'active' : '' ?>">Movimientos</a>
             <a href="<?= h(app_url('index.php?page=accounts')) ?>" class="<?= $page === 'accounts' ? 'active' : '' ?>">Cuentas</a>
             <a href="<?= h(app_url('index.php?page=categories')) ?>" class="<?= $page === 'categories' ? 'active' : '' ?>">Categorías</a>
             <a href="<?= h(app_url('index.php?page=budget')) ?>" class="<?= $page === 'budget' ? 'active' : '' ?>">Presupuesto</a>
             <a href="<?= h(app_url('index.php?page=summary')) ?>" class="<?= $page === 'summary' ? 'active' : '' ?>">Análisis</a>
-            <a href="<?= h(app_url('index.php?page=backup')) ?>" class="<?= $page === 'backup' ? 'active' : '' ?>">Copia de seguridad</a>
+            <a href="<?= h(app_url('index.php?page=backup')) ?>" class="<?= $page === 'backup' ? 'active' : '' ?>">Backup</a>
             <a href="<?= h(app_url('index.php?action=logout')) ?>">Salir</a>
         </nav>
         <?php endif; ?>
@@ -892,11 +892,15 @@ function current_url(array $override = []): string {
                                             —
                                         <?php endif; ?>
                                     <?php else: ?>
-                                        <div class="progress">
-                                            <div class="progress-bar <?= $isOverBudget ? 'over' : '' ?> <?= $isPending ? 'pending' : '' ?>">
-                                                <span class="progress-fill" style="width: <?= $progressClamped ?>%"></span>
+                                        <div class="progress <?= $overflowProgress > 0 ? 'has-overflow' : '' ?>">
+                                            <div class="progress-bars">
+                                                <div class="progress-bar <?= $isOverBudget ? 'over' : '' ?> <?= $isPending ? 'pending' : '' ?>">
+                                                    <span class="progress-fill" style="width: <?= $progressClamped ?>%"></span>
+                                                </div>
                                                 <?php if ($overflowProgress > 0): ?>
-                                                    <span class="progress-overflow" style="width: <?= min(100, $overflowProgress) ?>%"></span>
+                                                    <div class="progress-bar overflow">
+                                                        <span class="progress-fill" style="width: <?= min(100, $overflowProgress) ?>%"></span>
+                                                    </div>
                                                 <?php endif; ?>
                                             </div>
                                             <small class="<?= $isPending ? 'muted' : '' ?>"><?= (int)round($progress) ?>%</small>
@@ -993,20 +997,32 @@ function current_url(array $override = []): string {
         </section>
     <?php elseif ($page === 'backup'): ?>
         <section class="panel">
-            <h2>Copia de seguridad</h2>
-            <div class="backup-actions">
-                <a href="<?= h(app_url('index.php?action=export_backup')) ?>" class="primary">Exportar copia</a>
+            <div class="panel-header">
+                <div>
+                    <h2>Backup</h2>
+                    <p class="muted">Guarda tu información y recupérala en segundos.</p>
+                </div>
             </div>
-            <form method="post" action="<?= h(app_url('index.php?action=import_backup')) ?>" enctype="multipart/form-data" class="panel nested">
-                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <h3>Importar copia</h3>
-                <input type="file" name="backup" accept="application/json" required>
-                <label class="switch">
-                    <input type="checkbox" name="confirm_import">
-                    <span>Entiendo que esto sobrescribe los datos actuales</span>
-                </label>
-                <button type="submit" class="danger">Importar</button>
-            </form>
+            <div class="backup-grid">
+                <div class="backup-card">
+                    <h3>Exportar</h3>
+                    <p class="muted">Descarga un archivo JSON con todos tus movimientos, categorías y presupuestos.</p>
+                    <a href="<?= h(app_url('index.php?action=export_backup')) ?>" class="primary">Exportar copia</a>
+                </div>
+                <div class="backup-card backup-import">
+                    <h3>Importar</h3>
+                    <p class="muted">Restaura una copia previa. Se reemplazarán los datos actuales.</p>
+                    <form method="post" action="<?= h(app_url('index.php?action=import_backup')) ?>" enctype="multipart/form-data" class="backup-form">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <input type="file" name="backup" accept="application/json" required>
+                        <label class="switch">
+                            <input type="checkbox" name="confirm_import">
+                            <span>Entiendo que esto sobrescribe los datos actuales</span>
+                        </label>
+                        <button type="submit" class="danger">Importar</button>
+                    </form>
+                </div>
+            </div>
         </section>
     <?php elseif ($page === 'edit_movement'):
         $id = (int)($_GET['id'] ?? 0);
@@ -1200,7 +1216,7 @@ function current_url(array $override = []): string {
                 </div>
             </div>
             <div class="table-wrapper">
-                <table>
+                <table class="movements-table">
                     <thead>
                         <tr>
                             <th>Fecha</th>
