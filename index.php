@@ -127,20 +127,21 @@ if ($action === 'save_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $tipo = $_POST['tipo'] ?? 'gasto';
     $orden = (int)($_POST['orden'] ?? 0);
     $activa = isset($_POST['activa']) ? 1 : 0;
-    $isFavorite = isset($_POST['is_favorite']) ? 1 : 0;
+    $keywordsRaw = trim((string)($_POST['keywords'] ?? ''));
+    $keywords = trim(preg_replace('/\s*,\s*/', ', ', str_replace([';', "\n", "\r"], ',', $keywordsRaw)), " \t\n\r\0\x0B,");
 
     if ($nombre === '') {
         redirect_with_message('Nombre requerido.', 'index.php?page=categories');
     }
 
     if ($id > 0) {
-        $stmt = $pdo->prepare('UPDATE categories SET nombre = ?, tipo = ?, orden = ?, activa = ?, is_favorite = ? WHERE id = ?');
-        $stmt->execute([$nombre, $tipo, $orden, $activa, $isFavorite, $id]);
+        $stmt = $pdo->prepare('UPDATE categories SET nombre = ?, tipo = ?, orden = ?, activa = ?, keywords = ? WHERE id = ?');
+        $stmt->execute([$nombre, $tipo, $orden, $activa, $keywords, $id]);
         redirect_with_message('Categoría actualizada. ✔️', 'index.php?page=categories');
     }
 
-    $stmt = $pdo->prepare('INSERT INTO categories (nombre, tipo, orden, activa, is_favorite) VALUES (?, ?, ?, ?, ?)');
-    $stmt->execute([$nombre, $tipo, $orden, $activa, $isFavorite]);
+    $stmt = $pdo->prepare('INSERT INTO categories (nombre, tipo, orden, activa, keywords) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$nombre, $tipo, $orden, $activa, $keywords]);
     redirect_with_message('Categoría creada. ✨', 'index.php?page=categories');
 }
 
@@ -290,7 +291,7 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['cuenta'] ?? '',
             ]);
         }
-        $insertCat = $pdo->prepare('INSERT INTO categories (id, nombre, tipo, orden, activa, is_favorite) VALUES (?, ?, ?, ?, ?, ?)');
+        $insertCat = $pdo->prepare('INSERT INTO categories (id, nombre, tipo, orden, activa, is_favorite, keywords) VALUES (?, ?, ?, ?, ?, ?, ?)');
         foreach ($payload['categories'] ?? [] as $row) {
             $insertCat->execute([
                 $row['id'],
@@ -299,6 +300,7 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['orden'],
                 $row['activa'],
                 $row['is_favorite'] ?? 0,
+                $row['keywords'] ?? '',
             ]);
         }
         $insertAccount = $pdo->prepare('INSERT INTO accounts (id, nombre, orden, activa) VALUES (?, ?, ?, ?)');
@@ -339,7 +341,6 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categories = $pdo->query('SELECT * FROM categories ORDER BY orden, nombre')->fetchAll();
-$fav_categories = $pdo->query('SELECT * FROM categories WHERE is_favorite = 1 AND activa = 1 ORDER BY orden, nombre')->fetchAll();
 $accounts = $pdo->query('SELECT * FROM accounts ORDER BY orden, nombre')->fetchAll();
 $activeAccounts = array_values(array_filter($accounts, static function (array $account): bool {
     return (int)$account['activa'] === 1;
@@ -457,11 +458,11 @@ function current_url(array $override = []): string {
         </div>
         <?php if (is_logged_in()): ?>
         <nav class="nav">
-            <a href="<?= h(app_url('index.php')) ?>" class="<?= $page === 'movements' ? 'active' : '' ?>">Tus gastos</a>
-            <a href="<?= h(app_url('index.php?page=categories')) ?>" class="<?= $page === 'categories' ? 'active' : '' ?>">Tus categorías</a>
+            <a href="<?= h(app_url('index.php')) ?>" class="<?= $page === 'movements' ? 'active' : '' ?>">Gastos</a>
             <a href="<?= h(app_url('index.php?page=accounts')) ?>" class="<?= $page === 'accounts' ? 'active' : '' ?>">Cuentas</a>
+            <a href="<?= h(app_url('index.php?page=categories')) ?>" class="<?= $page === 'categories' ? 'active' : '' ?>">Categorías</a>
             <a href="<?= h(app_url('index.php?page=budget')) ?>" class="<?= $page === 'budget' ? 'active' : '' ?>">Presupuesto</a>
-            <a href="<?= h(app_url('index.php?page=summary')) ?>" class="<?= $page === 'summary' ? 'active' : '' ?>">Cómo vas este mes</a>
+            <a href="<?= h(app_url('index.php?page=summary')) ?>" class="<?= $page === 'summary' ? 'active' : '' ?>">Análisis</a>
             <a href="<?= h(app_url('index.php?page=backup')) ?>" class="<?= $page === 'backup' ? 'active' : '' ?>">Copia de seguridad</a>
             <a href="<?= h(app_url('index.php?action=logout')) ?>">Salir</a>
         </nav>
@@ -491,7 +492,7 @@ function current_url(array $override = []): string {
     <?php elseif ($page === 'categories'): ?>
         <section class="panel">
             <h2>Tus categorías</h2>
-            <p class="muted">Marca favoritas para tenerlas siempre a mano en el gasto rápido.</p>
+            <p class="muted">Define palabras clave para sugerir categorías al capturar movimientos.</p>
             <form method="post" action="<?= h(app_url('index.php?action=save_category')) ?>" class="inline-form">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="id" value="0">
@@ -507,9 +508,9 @@ function current_url(array $override = []): string {
                     <input type="checkbox" name="activa" checked>
                     <span>Visible</span>
                 </label>
-                <label class="switch">
-                    <input type="checkbox" name="is_favorite">
-                    <span>Favorita</span>
+                <label>
+                    Palabras clave
+                    <input type="text" name="keywords" placeholder="Ej: súper, Mercadona">
                 </label>
                 <button type="submit" class="primary">Añadir</button>
             </form>
@@ -521,7 +522,7 @@ function current_url(array $override = []): string {
                             <th>Tipo</th>
                             <th>Orden</th>
                             <th>Visible</th>
-                            <th>Favorita</th>
+                            <th>Palabras clave</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -532,7 +533,7 @@ function current_url(array $override = []): string {
                                 <td><?= h($cat['tipo']) ?></td>
                                 <td><?= h((string)$cat['orden']) ?></td>
                                 <td><?= $cat['activa'] ? 'Sí' : 'No' ?></td>
-                                <td><?= $cat['is_favorite'] ? '⭐' : '—' ?></td>
+                                <td><?= $cat['keywords'] !== '' ? h($cat['keywords']) : '—' ?></td>
                                 <td>
                                     <button class="ghost" type="button" data-edit='<?= h(json_encode($cat)) ?>'>Editar</button>
                                     <form method="post" action="<?= h(app_url('index.php?action=delete_category')) ?>" class="inline">
@@ -571,9 +572,9 @@ function current_url(array $override = []): string {
                         <input type="checkbox" name="activa" id="catActiva">
                         <span>Visible</span>
                     </label>
-                    <label class="switch">
-                        <input type="checkbox" name="is_favorite" id="catFavorite">
-                        <span>Favorita</span>
+                    <label>
+                        Palabras clave
+                        <input type="text" name="keywords" id="catKeywords" placeholder="Ej: súper, gasolina">
                     </label>
                     <menu>
                         <button type="button" class="ghost" id="closeCategory">Cancelar</button>
@@ -653,7 +654,7 @@ function current_url(array $override = []): string {
         <section class="panel">
             <div class="panel-header">
                 <div>
-                    <h2>Cómo vas este mes</h2>
+                    <h2>Análisis del mes</h2>
                     <p class="muted">Comparativa clara entre lo presupuestado y lo real.</p>
                 </div>
                 <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
@@ -898,30 +899,26 @@ function current_url(array $override = []): string {
             <div class="panel-header">
                 <div>
                     <h2>Captura rápida</h2>
-                    <p class="muted">Descripción, importe, categoría y listo. Lo demás es opcional.</p>
+                    <p class="muted">Descripción, importe y categoría sugerida sin pasos extra.</p>
                 </div>
             </div>
             <form method="post" action="<?= h(app_url('index.php?action=add_movement')) ?>" class="quick-entry-form">
                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-                <div class="quick-entry-row">
+                <div class="quick-entry-row primary">
+                    <label>
+                        Fecha
+                        <input type="date" name="fecha" value="<?= h(date('Y-m-d')) ?>" required>
+                    </label>
                     <label>
                         Descripción
-                        <input type="text" name="descripcion" placeholder="Ej: Supermercado" required>
+                        <input type="text" name="descripcion" id="descriptionInput" placeholder="Ej: Supermercado" required>
                     </label>
                     <label>
                         Importe
                         <input type="number" step="0.01" name="importe" placeholder="-24,90" required>
                     </label>
-                    <label>
-                        Categoría
-                        <select name="categoria" id="categorySelect" required>
-                            <option value="">Selecciona...</option>
-                            <?php foreach ($categories as $cat): ?>
-                                <?php if (!$cat['activa']) continue; ?>
-                                <option value="<?= h($cat['nombre']) ?>"><?= h($cat['nombre']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </label>
+                </div>
+                <div class="quick-entry-row secondary">
                     <label>
                         Cuenta
                         <select name="cuenta" required>
@@ -931,35 +928,18 @@ function current_url(array $override = []): string {
                             <?php endforeach; ?>
                         </select>
                     </label>
+                    <label>
+                        Categoría sugerida
+                        <select name="categoria" id="categorySelect" required>
+                            <option value="">Selecciona...</option>
+                            <?php foreach ($categories as $cat): ?>
+                                <?php if (!$cat['activa']) continue; ?>
+                                <option value="<?= h($cat['nombre']) ?>" data-keywords="<?= h($cat['keywords']) ?>"><?= h($cat['nombre']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
                     <button type="submit" class="primary">Listo</button>
                 </div>
-                <div class="quick-favorites">
-                    <span class="label">Favoritas (máx. 8)</span>
-                    <div class="pill-group">
-                        <?php if (empty($fav_categories)): ?>
-                            <span class="muted">Marca categorías favoritas para acceder rápido.</span>
-                        <?php else: ?>
-                            <?php foreach (array_slice($fav_categories, 0, 8) as $cat): ?>
-                                <button class="pill" type="button" data-category="<?= h($cat['nombre']) ?>">
-                                    <?= h($cat['nombre']) ?>
-                                </button>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <details class="quick-details">
-                    <summary>Detalles opcionales</summary>
-                    <div class="quick-extra">
-                        <label>
-                            Fecha
-                            <input type="date" name="fecha" value="<?= h(date('Y-m-d')) ?>" required>
-                        </label>
-                        <label>
-                            Notas
-                            <textarea name="notas" rows="2" placeholder="Notas opcionales"></textarea>
-                        </label>
-                    </div>
-                </details>
             </form>
         </section>
 

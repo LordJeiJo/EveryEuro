@@ -99,7 +99,8 @@ function init_db(array $config): void {
         tipo TEXT NOT NULL,
         orden INTEGER NOT NULL DEFAULT 0,
         activa INTEGER NOT NULL DEFAULT 1,
-        is_favorite INTEGER NOT NULL DEFAULT 0
+        is_favorite INTEGER NOT NULL DEFAULT 0,
+        keywords TEXT NOT NULL DEFAULT ""
     )');
     $pdo->exec('CREATE TABLE IF NOT EXISTS rules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,6 +120,9 @@ function init_db(array $config): void {
 
     if (!column_exists($pdo, 'categories', 'is_favorite')) {
         $pdo->exec('ALTER TABLE categories ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!column_exists($pdo, 'categories', 'keywords')) {
+        $pdo->exec('ALTER TABLE categories ADD COLUMN keywords TEXT NOT NULL DEFAULT ""');
     }
 
     $count = (int)$pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn();
