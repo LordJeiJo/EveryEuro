@@ -53,6 +53,12 @@ body {
     gap: 16px;
 }
 
+.topbar-right {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+
 .brand {
     display: flex;
     gap: 12px;
@@ -81,7 +87,7 @@ body {
 .nav {
     position: absolute;
     top: calc(100% + 12px);
-    left: 0;
+    right: 0;
     display: none;
     flex-direction: column;
     gap: 8px;
@@ -180,6 +186,20 @@ h3 {
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
+}
+
+.budget-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.budget-summary strong {
+    display: block;
+    color: var(--text);
+    font-size: 1rem;
 }
 
 .form-grid {
@@ -686,12 +706,15 @@ menu {
 .extra-summary {
     display: grid;
     gap: 8px;
+    margin-bottom: 8px;
 }
 
 .extra-totals {
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
+    margin-top: 6px;
+    justify-content: center;
     font-size: 0.9rem;
     color: var(--muted);
 }
@@ -707,6 +730,7 @@ menu {
     display: grid;
     gap: 16px;
     grid-template-columns: repeat(var(--extra-columns), minmax(220px, 1fr));
+    margin-top: 8px;
 }
 
 .extra-card {
@@ -740,12 +764,23 @@ menu {
 
 .extra-item {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     gap: 12px;
     padding: 10px 12px;
     border-radius: 14px;
     background: var(--panel);
     border: 1px solid var(--border);
+}
+
+.extra-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.extra-item-info {
+    flex: 1;
 }
 
 .extra-item p {
@@ -757,6 +792,25 @@ menu {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.extra-edit {
+    background: var(--panel-muted);
+    border-radius: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+}
+
+.extra-edit summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.extra-edit-form {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
 }
 
 .extra-form {

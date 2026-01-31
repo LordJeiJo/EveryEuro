@@ -54,8 +54,8 @@ reviewButton?.addEventListener('click', () => {
     applyReviewFilter();
 });
 
-const categorySelect = document.getElementById('categorySelect');
-const descriptionInput = document.getElementById('descriptionInput');
+const movementCategorySelect = document.getElementById('categorySelect');
+const movementDescriptionInput = document.getElementById('descriptionInput');
 
 function normalizeText(value) {
     return value
@@ -64,9 +64,9 @@ function normalizeText(value) {
         .replace(/\p{Diacritic}/gu, '');
 }
 
-function buildKeywordMap() {
-    if (!categorySelect) return [];
-    return Array.from(categorySelect.options)
+function buildKeywordMapFromSelect(select) {
+    if (!select) return [];
+    return Array.from(select.options)
         .filter((option) => option.value)
         .map((option) => {
             const keywords = option.dataset.keywords || '';
@@ -82,14 +82,14 @@ function buildKeywordMap() {
         });
 }
 
-const keywordMap = buildKeywordMap();
+const keywordMap = buildKeywordMapFromSelect(movementCategorySelect);
 let manualCategorySelection = false;
 
 function suggestCategory() {
-    if (!descriptionInput || !categorySelect || manualCategorySelection) return;
-    const description = normalizeText(descriptionInput.value);
+    if (!movementDescriptionInput || !movementCategorySelect || manualCategorySelection) return;
+    const description = normalizeText(movementDescriptionInput.value);
     if (!description) {
-        categorySelect.value = '';
+        movementCategorySelect.value = '';
         return;
     }
     let suggested = '';
@@ -100,19 +100,56 @@ function suggestCategory() {
         }
     }
     if (suggested) {
-        categorySelect.value = suggested;
+        movementCategorySelect.value = suggested;
     }
 }
 
-descriptionInput?.addEventListener('input', () => {
-    if (!descriptionInput.value.trim()) {
+movementDescriptionInput?.addEventListener('input', () => {
+    if (!movementDescriptionInput.value.trim()) {
         manualCategorySelection = false;
     }
     suggestCategory();
 });
 
-categorySelect?.addEventListener('change', () => {
-    manualCategorySelection = categorySelect.value !== '';
+movementCategorySelect?.addEventListener('change', () => {
+    manualCategorySelection = movementCategorySelect.value !== '';
+});
+
+document.querySelectorAll('[data-extra-form]').forEach((form) => {
+    const descriptionInput = form.querySelector('[data-extra-description]');
+    const categorySelect = form.querySelector('[data-extra-category]');
+    const keywordMap = buildKeywordMapFromSelect(categorySelect);
+    let manualSelection = false;
+
+    function suggestExtraCategory() {
+        if (!descriptionInput || !categorySelect || manualSelection) return;
+        const description = normalizeText(descriptionInput.value);
+        if (!description) {
+            categorySelect.value = '';
+            return;
+        }
+        let suggested = '';
+        for (const entry of keywordMap) {
+            if (entry.keywords.some((keyword) => description.includes(keyword))) {
+                suggested = entry.value;
+                break;
+            }
+        }
+        if (suggested) {
+            categorySelect.value = suggested;
+        }
+    }
+
+    descriptionInput?.addEventListener('input', () => {
+        if (!descriptionInput.value.trim()) {
+            manualSelection = false;
+        }
+        suggestExtraCategory();
+    });
+
+    categorySelect?.addEventListener('change', () => {
+        manualSelection = categorySelect.value !== '';
+    });
 });
 
 const dialog = document.getElementById('categoryDialog');
