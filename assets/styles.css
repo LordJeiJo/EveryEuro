@@ -707,6 +707,7 @@ menu {
     display: grid;
     gap: 8px;
     margin-bottom: 8px;
+    flex: 1 1 320px;
 }
 
 .extra-totals {
