@@ -163,6 +163,7 @@ const budgetColumnsKey = 'budget-columns';
 const extraColumnsSelect = document.getElementById('extraColumns');
 const extraGrid = document.querySelector('.extra-grid');
 const extraColumnsKey = 'extra-columns';
+const extraScrollKey = 'extra-scroll';
 const menuToggle = document.getElementById('menuToggle');
 const appNav = document.getElementById('appNav');
 
@@ -244,6 +245,25 @@ if (extraColumnsSelect && extraGrid) {
         const value = event.target.value;
         applyExtraColumns(value);
         window.localStorage.setItem(extraColumnsKey, value);
+    });
+}
+
+const savedExtraScroll = window.sessionStorage.getItem(extraScrollKey);
+if (savedExtraScroll !== null && extraGrid) {
+    window.sessionStorage.removeItem(extraScrollKey);
+    requestAnimationFrame(() => {
+        const scrollValue = Number.parseInt(savedExtraScroll, 10);
+        window.scrollTo({ top: Number.isNaN(scrollValue) ? 0 : scrollValue });
+    });
+}
+
+if (extraGrid) {
+    const extraForms = extraGrid.querySelectorAll('form');
+    const extraPanelForms = document.querySelectorAll('.panel-actions form');
+    [...extraForms, ...extraPanelForms].forEach((form) => {
+        form.addEventListener('submit', () => {
+            window.sessionStorage.setItem(extraScrollKey, String(window.scrollY));
+        });
     });
 }
 
