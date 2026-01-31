@@ -1220,18 +1220,18 @@ function current_url(array $override = []): string {
                 <div class="extra-summary">
                     <h2>Extraordinarios</h2>
                     <p class="muted">Apunta gastos no recurrentes para repartirlos después en el presupuesto mensual.</p>
-                        <div class="extra-totals">
-                            <div class="extra-total-card">
-                                <span>Total anual</span>
-                                <strong><?= format_amount($extraordinaryYearTotal) ?> €</strong>
-                            </div>
-                            <div class="extra-total-card">
-                                <span>Aportación mensual</span>
-                                <strong><?= format_amount($extraordinaryMonthlyContribution) ?> €</strong>
-                            </div>
-                        </div>
                 </div>
                 <div class="panel-actions">
+                    <div class="extra-totals">
+                        <div class="extra-total-card">
+                            <span>Total anual</span>
+                            <strong><?= format_amount($extraordinaryYearTotal) ?> €</strong>
+                        </div>
+                        <div class="extra-total-card">
+                            <span>Aportación mensual</span>
+                            <strong><?= format_amount($extraordinaryMonthlyContribution) ?> €</strong>
+                        </div>
+                    </div>
                     <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
                         <input type="hidden" name="page" value="extraordinary">
                         <input type="number" name="year" value="<?= h($year) ?>" min="2000" max="2100">
