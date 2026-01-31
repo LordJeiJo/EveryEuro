@@ -123,8 +123,14 @@ function init_db(array $config): void {
         descripcion TEXT NOT NULL,
         importe REAL NOT NULL,
         categoria_id INTEGER,
-        notas TEXT
+        notas TEXT,
+        position INTEGER NOT NULL DEFAULT 0
     )');
+
+    if (!column_exists($pdo, 'extraordinary_expenses', 'position')) {
+        $pdo->exec('ALTER TABLE extraordinary_expenses ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
+    }
+    $pdo->exec('UPDATE extraordinary_expenses SET position = id WHERE position IS NULL OR position = 0');
 
     if (!column_exists($pdo, 'categories', 'is_favorite')) {
         $pdo->exec('ALTER TABLE categories ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');

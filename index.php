@@ -294,8 +294,12 @@ if ($action === 'add_extraordinary' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_with_message('Añade descripción e importe para continuar.', 'index.php?page=extraordinary&year=' . substr($monthValue, 0, 4));
     }
 
-    $stmt = $pdo->prepare('INSERT INTO extraordinary_expenses (month, descripcion, importe, categoria_id, notas) VALUES (?, ?, ?, ?, ?)');
-    $stmt->execute([$monthValue, $descripcion, $importe, $categoriaId > 0 ? $categoriaId : null, '']);
+    $positionStmt = $pdo->prepare('SELECT COALESCE(MAX(position), 0) FROM extraordinary_expenses WHERE month = ?');
+    $positionStmt->execute([$monthValue]);
+    $nextPosition = (int)$positionStmt->fetchColumn() + 1;
+
+    $stmt = $pdo->prepare('INSERT INTO extraordinary_expenses (month, descripcion, importe, categoria_id, notas, position) VALUES (?, ?, ?, ?, ?, ?)');
+    $stmt->execute([$monthValue, $descripcion, $importe, $categoriaId > 0 ? $categoriaId : null, '', $nextPosition]);
     redirect_with_message('Gasto extraordinario guardado.', 'index.php?page=extraordinary&year=' . substr($monthValue, 0, 4));
 }
 
@@ -323,6 +327,47 @@ if ($action === 'delete_extraordinary' && $_SERVER['REQUEST_METHOD'] === 'POST')
     $stmt = $pdo->prepare('DELETE FROM extraordinary_expenses WHERE id = ?');
     $stmt->execute([$id]);
     redirect_with_message('Gasto extraordinario eliminado.', 'index.php?page=extraordinary&year=' . urlencode((string)$yearValue));
+}
+
+if ($action === 'move_extraordinary' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    $direction = $_POST['direction'] ?? '';
+    $yearValue = $_POST['year'] ?? date('Y');
+
+    if ($id <= 0 || !in_array($direction, ['up', 'down'], true)) {
+        redirect_with_message('Movimiento inválido.', 'index.php?page=extraordinary&year=' . urlencode((string)$yearValue));
+    }
+
+    $stmt = $pdo->prepare('SELECT id, month, position FROM extraordinary_expenses WHERE id = ?');
+    $stmt->execute([$id]);
+    $current = $stmt->fetch();
+    if (!$current) {
+        redirect_with_message('Gasto no encontrado.', 'index.php?page=extraordinary&year=' . urlencode((string)$yearValue));
+    }
+
+    $monthValue = $current['month'];
+    if ($direction === 'up') {
+        $neighborStmt = $pdo->prepare('SELECT id, position FROM extraordinary_expenses WHERE month = ? AND position < ? ORDER BY position DESC, id DESC LIMIT 1');
+    } else {
+        $neighborStmt = $pdo->prepare('SELECT id, position FROM extraordinary_expenses WHERE month = ? AND position > ? ORDER BY position ASC, id ASC LIMIT 1');
+    }
+    $neighborStmt->execute([$monthValue, $current['position']]);
+    $neighbor = $neighborStmt->fetch();
+
+    if ($neighbor) {
+        $pdo->beginTransaction();
+        try {
+            $update = $pdo->prepare('UPDATE extraordinary_expenses SET position = ? WHERE id = ?');
+            $update->execute([$neighbor['position'], $current['id']]);
+            $update->execute([$current['position'], $neighbor['id']]);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+        }
+    }
+
+    redirect_with_message('Orden actualizado.', 'index.php?page=extraordinary&year=' . urlencode((string)$yearValue));
 }
 
 if ($action === 'delete_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -432,7 +477,7 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['notes'] ?? '',
             ]);
         }
-        $insertExtra = $pdo->prepare('INSERT INTO extraordinary_expenses (id, month, descripcion, importe, categoria_id, notas) VALUES (?, ?, ?, ?, ?, ?)');
+        $insertExtra = $pdo->prepare('INSERT INTO extraordinary_expenses (id, month, descripcion, importe, categoria_id, notas, position) VALUES (?, ?, ?, ?, ?, ?, ?)');
         foreach ($payload['extraordinary_expenses'] ?? [] as $row) {
             $insertExtra->execute([
                 $row['id'],
@@ -441,6 +486,7 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['importe'],
                 $row['categoria_id'] ?? null,
                 $row['notas'] ?? '',
+                $row['position'] ?? 0,
             ]);
         }
         $pdo->commit();
@@ -571,7 +617,7 @@ foreach ($yearBudgetsByCategory as $categoryId => $budget) {
 
 $yearBudgetBalance = $yearBudgetTotals['ingresos'] - $yearBudgetTotals['gastos'];
 
-$extraordinaryStmt = $pdo->prepare('SELECT e.*, c.nombre as categoria_nombre FROM extraordinary_expenses e LEFT JOIN categories c ON e.categoria_id = c.id WHERE e.month LIKE ? ORDER BY e.month DESC, e.id DESC');
+$extraordinaryStmt = $pdo->prepare('SELECT e.*, c.nombre as categoria_nombre FROM extraordinary_expenses e LEFT JOIN categories c ON e.categoria_id = c.id WHERE e.month LIKE ? ORDER BY e.month DESC, e.position ASC, e.id ASC');
 $extraordinaryStmt->execute([$yearLike]);
 $extraordinaryRows = $extraordinaryStmt->fetchAll();
 $extraordinaryByMonth = [];
@@ -1175,15 +1221,15 @@ function current_url(array $override = []): string {
                     <h2>Extraordinarios</h2>
                     <p class="muted">Apunta gastos no recurrentes para repartirlos después en el presupuesto mensual.</p>
                         <div class="extra-totals">
-                            <div>
+                            <div class="extra-total-card">
                                 <span>Total anual</span>
                                 <strong><?= format_amount($extraordinaryYearTotal) ?> €</strong>
                             </div>
-                        <div>
-                            <span>Aportación mensual</span>
-                            <strong><?= format_amount($extraordinaryMonthlyContribution) ?> €</strong>
+                            <div class="extra-total-card">
+                                <span>Aportación mensual</span>
+                                <strong><?= format_amount($extraordinaryMonthlyContribution) ?> €</strong>
+                            </div>
                         </div>
-                    </div>
                 </div>
                 <div class="panel-actions">
                     <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
@@ -1233,6 +1279,30 @@ function current_url(array $override = []): string {
                                             </div>
                                             <div class="extra-item-actions">
                                                 <span class="amount negative"><?= format_amount((float)$row['importe']) ?> €</span>
+                                                <div class="extra-item-order">
+                                                    <form method="post" action="<?= h(app_url('index.php?action=move_extraordinary')) ?>">
+                                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                                        <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+                                                        <input type="hidden" name="direction" value="up">
+                                                        <input type="hidden" name="year" value="<?= h($year) ?>">
+                                                        <button type="submit" class="ghost icon-button extra-order-button" aria-label="Mover arriba">
+                                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                                <path d="M12 5 5 12h4v7h6v-7h4l-7-7Z" fill="currentColor"/>
+                                                            </svg>
+                                                        </button>
+                                                    </form>
+                                                    <form method="post" action="<?= h(app_url('index.php?action=move_extraordinary')) ?>">
+                                                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                                        <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+                                                        <input type="hidden" name="direction" value="down">
+                                                        <input type="hidden" name="year" value="<?= h($year) ?>">
+                                                        <button type="submit" class="ghost icon-button extra-order-button" aria-label="Mover abajo">
+                                                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                                <path d="m12 19 7-7h-4V5H9v7H5l7 7Z" fill="currentColor"/>
+                                                            </svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
                                                 <form method="post" action="<?= h(app_url('index.php?action=delete_extraordinary')) ?>">
                                                     <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                                     <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
