@@ -117,6 +117,14 @@ function init_db(array $config): void {
         notes TEXT
     )');
     $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS budgets_month_category ON budgets (month, category_id)');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS extraordinary_expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        month TEXT NOT NULL,
+        descripcion TEXT NOT NULL,
+        importe REAL NOT NULL,
+        categoria_id INTEGER,
+        notas TEXT
+    )');
 
     if (!column_exists($pdo, 'categories', 'is_favorite')) {
         $pdo->exec('ALTER TABLE categories ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');

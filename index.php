@@ -283,6 +283,32 @@ if ($action === 'copy_budgets' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect_with_message('Presupuestos copiados. ✔️', 'index.php?page=budget&month=' . urlencode($monthValue));
 }
 
+if ($action === 'add_extraordinary' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $monthValue = $_POST['month'] ?? date('Y-m');
+    $descripcion = trim($_POST['descripcion'] ?? '');
+    $importe = (float)str_replace(',', '.', $_POST['importe'] ?? '0');
+    $categoriaId = (int)($_POST['categoria_id'] ?? 0);
+    $notas = trim($_POST['notas'] ?? '');
+
+    if ($descripcion === '' || $importe <= 0) {
+        redirect_with_message('Añade descripción e importe para continuar.', 'index.php?page=extraordinary&year=' . substr($monthValue, 0, 4));
+    }
+
+    $stmt = $pdo->prepare('INSERT INTO extraordinary_expenses (month, descripcion, importe, categoria_id, notas) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$monthValue, $descripcion, $importe, $categoriaId > 0 ? $categoriaId : null, $notas]);
+    redirect_with_message('Gasto extraordinario guardado.', 'index.php?page=extraordinary&year=' . substr($monthValue, 0, 4));
+}
+
+if ($action === 'delete_extraordinary' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    $yearValue = $_POST['year'] ?? date('Y');
+    $stmt = $pdo->prepare('DELETE FROM extraordinary_expenses WHERE id = ?');
+    $stmt->execute([$id]);
+    redirect_with_message('Gasto extraordinario eliminado.', 'index.php?page=extraordinary&year=' . urlencode((string)$yearValue));
+}
+
 if ($action === 'delete_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $id = (int)($_POST['id'] ?? 0);
@@ -308,6 +334,7 @@ if ($action === 'export_backup') {
         'accounts' => $pdo->query('SELECT * FROM accounts')->fetchAll(),
         'rules' => $pdo->query('SELECT * FROM rules')->fetchAll(),
         'budgets' => $pdo->query('SELECT * FROM budgets')->fetchAll(),
+        'extraordinary_expenses' => $pdo->query('SELECT * FROM extraordinary_expenses')->fetchAll(),
     ];
     $filename = 'everyeuro-backup-' . date('Ymd-His') . '.json';
     header('Content-Type: application/json');
@@ -333,6 +360,7 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec('DELETE FROM accounts');
         $pdo->exec('DELETE FROM rules');
         $pdo->exec('DELETE FROM budgets');
+        $pdo->exec('DELETE FROM extraordinary_expenses');
         $insertMove = $pdo->prepare('INSERT INTO movements (id, fecha, descripcion, importe, categoria, notas, estado, mes, cuenta) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($payload['movements'] ?? [] as $row) {
             $insertMove->execute([
@@ -386,6 +414,17 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['category_id'],
                 $row['planned_amount'],
                 $row['notes'] ?? '',
+            ]);
+        }
+        $insertExtra = $pdo->prepare('INSERT INTO extraordinary_expenses (id, month, descripcion, importe, categoria_id, notas) VALUES (?, ?, ?, ?, ?, ?)');
+        foreach ($payload['extraordinary_expenses'] ?? [] as $row) {
+            $insertExtra->execute([
+                $row['id'],
+                $row['month'],
+                $row['descripcion'],
+                $row['importe'],
+                $row['categoria_id'] ?? null,
+                $row['notas'] ?? '',
             ]);
         }
         $pdo->commit();
@@ -516,6 +555,35 @@ foreach ($yearBudgetsByCategory as $categoryId => $budget) {
 
 $yearBudgetBalance = $yearBudgetTotals['ingresos'] - $yearBudgetTotals['gastos'];
 
+$extraordinaryStmt = $pdo->prepare('SELECT e.*, c.nombre as categoria_nombre FROM extraordinary_expenses e LEFT JOIN categories c ON e.categoria_id = c.id WHERE e.month LIKE ? ORDER BY e.month DESC, e.id DESC');
+$extraordinaryStmt->execute([$yearLike]);
+$extraordinaryRows = $extraordinaryStmt->fetchAll();
+$extraordinaryByMonth = [];
+$extraordinaryTotals = [];
+foreach ($extraordinaryRows as $row) {
+    $monthKey = $row['month'];
+    $extraordinaryByMonth[$monthKey] ??= [];
+    $extraordinaryByMonth[$monthKey][] = $row;
+    $extraordinaryTotals[$monthKey] = ($extraordinaryTotals[$monthKey] ?? 0) + (float)$row['importe'];
+}
+$extraordinaryYearTotal = array_sum($extraordinaryTotals);
+$extraordinaryMonthlyContribution = $extraordinaryYearTotal > 0 ? ($extraordinaryYearTotal / 12) : 0.0;
+
+$monthNames = [
+    '01' => 'Enero',
+    '02' => 'Febrero',
+    '03' => 'Marzo',
+    '04' => 'Abril',
+    '05' => 'Mayo',
+    '06' => 'Junio',
+    '07' => 'Julio',
+    '08' => 'Agosto',
+    '09' => 'Septiembre',
+    '10' => 'Octubre',
+    '11' => 'Noviembre',
+    '12' => 'Diciembre',
+];
+
 function ratio_percent(float $actual, float $budget): int {
     if ($budget <= 0) {
         return 0;
@@ -593,18 +661,29 @@ function current_url(array $override = []): string {
 <body>
 <div class="app">
     <header class="topbar">
-        <div class="brand">
-            <span class="dot"></span>
-            <div>
-                <h1>EveryEuro</h1>
-                <p>Tu panel rápido para saber cómo va el mes.</p>
+        <div class="topbar-left">
+            <?php if (is_logged_in()): ?>
+                <button class="menu-toggle" type="button" id="menuToggle" aria-expanded="false" aria-controls="appNav">
+                    <span class="sr-only">Abrir menú</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" fill="currentColor"/>
+                    </svg>
+                </button>
+            <?php endif; ?>
+            <div class="brand">
+                <span class="dot"></span>
+                <div>
+                    <h1>EveryEuro</h1>
+                    <p>Tu panel rápido para saber cómo va el mes.</p>
+                </div>
             </div>
         </div>
         <?php if (is_logged_in()): ?>
-        <nav class="nav">
+        <nav class="nav" id="appNav">
             <a href="<?= h(app_url('index.php')) ?>" class="<?= $page === 'movements' ? 'active' : '' ?>">Movimientos</a>
             <a href="<?= h(app_url('index.php?page=accounts')) ?>" class="<?= $page === 'accounts' ? 'active' : '' ?>">Cuentas</a>
             <a href="<?= h(app_url('index.php?page=categories')) ?>" class="<?= $page === 'categories' ? 'active' : '' ?>">Categorías</a>
+            <a href="<?= h(app_url('index.php?page=extraordinary')) ?>" class="<?= $page === 'extraordinary' ? 'active' : '' ?>">Extraordinarios</a>
             <a href="<?= h(app_url('index.php?page=budget')) ?>" class="<?= $page === 'budget' ? 'active' : '' ?>">Presupuesto</a>
             <a href="<?= h(app_url('index.php?page=summary')) ?>" class="<?= $page === 'summary' ? 'active' : '' ?>">Análisis</a>
             <a href="<?= h(app_url('index.php?page=backup')) ?>" class="<?= $page === 'backup' ? 'active' : '' ?>">Backup</a>
@@ -1071,6 +1150,118 @@ function current_url(array $override = []): string {
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+            </div>
+        </section>
+    <?php elseif ($page === 'extraordinary'): ?>
+        <section class="panel">
+            <div class="panel-header">
+                <div class="extra-summary">
+                    <h2>Extraordinarios</h2>
+                    <p class="muted">Apunta gastos no recurrentes para repartirlos después en el presupuesto mensual.</p>
+                    <div class="extra-totals">
+                        <div>
+                            <span>Total anual</span>
+                            <strong><?= format_amount($extraordinaryYearTotal) ?> €</strong>
+                        </div>
+                        <div>
+                            <span>Aportación mensual</span>
+                            <strong><?= format_amount($extraordinaryMonthlyContribution) ?> €</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-actions">
+                    <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
+                        <input type="hidden" name="page" value="extraordinary">
+                        <input type="number" name="year" value="<?= h($year) ?>" min="2000" max="2100">
+                        <button type="submit" class="ghost">Cambiar año</button>
+                    </form>
+                    <div class="budget-controls">
+                        <label for="extraColumns">Tarjetas por fila</label>
+                        <select id="extraColumns">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3" selected>3</option>
+                            <option value="4">4</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="extra-grid">
+                <?php for ($i = 1; $i <= 12; $i++):
+                    $monthKey = str_pad((string)$i, 2, '0', STR_PAD_LEFT);
+                    $monthValue = $year . '-' . $monthKey;
+                    $monthLabel = $monthNames[$monthKey] ?? $monthKey;
+                    $monthTotal = $extraordinaryTotals[$monthValue] ?? 0.0;
+                    $monthRows = $extraordinaryByMonth[$monthValue] ?? [];
+                    ?>
+                    <div class="extra-card">
+                        <div class="extra-card-header">
+                            <div>
+                                <h3><?= h($monthLabel) ?></h3>
+                                <p class="muted"><?= h($monthValue) ?></p>
+                            </div>
+                            <span class="extra-total"><?= format_amount($monthTotal) ?> €</span>
+                        </div>
+                        <div class="extra-list">
+                            <?php if (empty($monthRows)): ?>
+                                <p class="muted">Sin gastos registrados.</p>
+                            <?php else: ?>
+                                <?php foreach ($monthRows as $row): ?>
+                                    <div class="extra-item">
+                                        <div>
+                                            <strong><?= h($row['descripcion']) ?></strong>
+                                            <p class="muted">
+                                                <?= h($row['categoria_nombre'] ?? 'Sin categoría') ?>
+                                                <?= $row['notas'] !== '' ? '· ' . h($row['notas']) : '' ?>
+                                            </p>
+                                        </div>
+                                        <div class="extra-item-actions">
+                                            <span class="amount negative"><?= format_amount((float)$row['importe']) ?> €</span>
+                                            <form method="post" action="<?= h(app_url('index.php?action=delete_extraordinary')) ?>">
+                                                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                                <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+                                                <input type="hidden" name="year" value="<?= h($year) ?>">
+                                                <button type="submit" class="danger icon-button" aria-label="Eliminar gasto">
+                                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                        <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12h12a2 2 0 0 0 2-2V9H4v10a2 2 0 0 0 2 2Z" fill="currentColor"/>
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                        <form method="post" action="<?= h(app_url('index.php?action=add_extraordinary')) ?>" class="extra-form">
+                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                            <input type="hidden" name="month" value="<?= h($monthValue) ?>">
+                            <label>
+                                Concepto
+                                <input type="text" name="descripcion" placeholder="Ej: Seguro anual" required>
+                            </label>
+                            <label>
+                                Importe
+                                <input type="number" step="0.01" min="0" name="importe" placeholder="0,00" required>
+                            </label>
+                            <label>
+                                Categoría
+                                <select name="categoria_id" required>
+                                    <option value="">Selecciona</option>
+                                    <?php foreach ($activeCategories as $cat): ?>
+                                        <option value="<?= (int)$cat['id'] ?>"><?= h($cat['nombre']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </label>
+                            <label class="full">
+                                Notas
+                                <input type="text" name="notas" placeholder="Opcional">
+                            </label>
+                            <div class="actions">
+                                <button type="submit" class="primary">Añadir</button>
+                            </div>
+                        </form>
+                    </div>
+                <?php endfor; ?>
             </div>
         </section>
     <?php elseif ($page === 'budget'): ?>
