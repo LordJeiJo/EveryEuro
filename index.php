@@ -289,15 +289,31 @@ if ($action === 'add_extraordinary' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $descripcion = trim($_POST['descripcion'] ?? '');
     $importe = (float)str_replace(',', '.', $_POST['importe'] ?? '0');
     $categoriaId = (int)($_POST['categoria_id'] ?? 0);
-    $notas = trim($_POST['notas'] ?? '');
 
     if ($descripcion === '' || $importe <= 0) {
         redirect_with_message('Añade descripción e importe para continuar.', 'index.php?page=extraordinary&year=' . substr($monthValue, 0, 4));
     }
 
     $stmt = $pdo->prepare('INSERT INTO extraordinary_expenses (month, descripcion, importe, categoria_id, notas) VALUES (?, ?, ?, ?, ?)');
-    $stmt->execute([$monthValue, $descripcion, $importe, $categoriaId > 0 ? $categoriaId : null, $notas]);
+    $stmt->execute([$monthValue, $descripcion, $importe, $categoriaId > 0 ? $categoriaId : null, '']);
     redirect_with_message('Gasto extraordinario guardado.', 'index.php?page=extraordinary&year=' . substr($monthValue, 0, 4));
+}
+
+if ($action === 'update_extraordinary' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    $descripcion = trim($_POST['descripcion'] ?? '');
+    $importe = (float)str_replace(',', '.', $_POST['importe'] ?? '0');
+    $categoriaId = (int)($_POST['categoria_id'] ?? 0);
+    $yearValue = $_POST['year'] ?? date('Y');
+
+    if ($id <= 0 || $descripcion === '' || $importe <= 0) {
+        redirect_with_message('Completa descripción e importe para actualizar.', 'index.php?page=extraordinary&year=' . urlencode((string)$yearValue));
+    }
+
+    $stmt = $pdo->prepare('UPDATE extraordinary_expenses SET descripcion = ?, importe = ?, categoria_id = ?, notas = ? WHERE id = ?');
+    $stmt->execute([$descripcion, $importe, $categoriaId > 0 ? $categoriaId : null, '', $id]);
+    redirect_with_message('Gasto extraordinario actualizado.', 'index.php?page=extraordinary&year=' . urlencode((string)$yearValue));
 }
 
 if ($action === 'delete_extraordinary' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -662,14 +678,6 @@ function current_url(array $override = []): string {
 <div class="app">
     <header class="topbar">
         <div class="topbar-left">
-            <?php if (is_logged_in()): ?>
-                <button class="menu-toggle" type="button" id="menuToggle" aria-expanded="false" aria-controls="appNav">
-                    <span class="sr-only">Abrir menú</span>
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" fill="currentColor"/>
-                    </svg>
-                </button>
-            <?php endif; ?>
             <div class="brand">
                 <span class="dot"></span>
                 <div>
@@ -679,6 +687,14 @@ function current_url(array $override = []): string {
             </div>
         </div>
         <?php if (is_logged_in()): ?>
+        <div class="topbar-right">
+            <button class="menu-toggle" type="button" id="menuToggle" aria-expanded="false" aria-controls="appNav">
+                <span class="sr-only">Abrir menú</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" fill="currentColor"/>
+                </svg>
+            </button>
+        </div>
         <nav class="nav" id="appNav">
             <a href="<?= h(app_url('index.php')) ?>" class="<?= $page === 'movements' ? 'active' : '' ?>">Movimientos</a>
             <a href="<?= h(app_url('index.php?page=accounts')) ?>" class="<?= $page === 'accounts' ? 'active' : '' ?>">Cuentas</a>
@@ -1158,11 +1174,11 @@ function current_url(array $override = []): string {
                 <div class="extra-summary">
                     <h2>Extraordinarios</h2>
                     <p class="muted">Apunta gastos no recurrentes para repartirlos después en el presupuesto mensual.</p>
-                    <div class="extra-totals">
-                        <div>
-                            <span>Total anual</span>
-                            <strong><?= format_amount($extraordinaryYearTotal) ?> €</strong>
-                        </div>
+                        <div class="extra-totals">
+                            <div>
+                                <span>Total anual</span>
+                                <strong><?= format_amount($extraordinaryYearTotal) ?> €</strong>
+                            </div>
                         <div>
                             <span>Aportación mensual</span>
                             <strong><?= format_amount($extraordinaryMonthlyContribution) ?> €</strong>
@@ -1208,36 +1224,67 @@ function current_url(array $override = []): string {
                             <?php else: ?>
                                 <?php foreach ($monthRows as $row): ?>
                                     <div class="extra-item">
-                                        <div>
-                                            <strong><?= h($row['descripcion']) ?></strong>
-                                            <p class="muted">
-                                                <?= h($row['categoria_nombre'] ?? 'Sin categoría') ?>
-                                                <?= $row['notas'] !== '' ? '· ' . h($row['notas']) : '' ?>
-                                            </p>
+                                        <div class="extra-item-row">
+                                            <div class="extra-item-info">
+                                                <strong><?= h($row['descripcion']) ?></strong>
+                                                <p class="muted">
+                                                    <?= h($row['categoria_nombre'] ?? 'Sin categoría') ?>
+                                                </p>
+                                            </div>
+                                            <div class="extra-item-actions">
+                                                <span class="amount negative"><?= format_amount((float)$row['importe']) ?> €</span>
+                                                <form method="post" action="<?= h(app_url('index.php?action=delete_extraordinary')) ?>">
+                                                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                                    <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+                                                    <input type="hidden" name="year" value="<?= h($year) ?>">
+                                                    <button type="submit" class="danger icon-button" aria-label="Eliminar gasto">
+                                                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                            <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12h12a2 2 0 0 0 2-2V9H4v10a2 2 0 0 0 2 2Z" fill="currentColor"/>
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
-                                        <div class="extra-item-actions">
-                                            <span class="amount negative"><?= format_amount((float)$row['importe']) ?> €</span>
-                                            <form method="post" action="<?= h(app_url('index.php?action=delete_extraordinary')) ?>">
+                                        <details class="extra-edit">
+                                            <summary>Editar gasto</summary>
+                                            <form method="post" action="<?= h(app_url('index.php?action=update_extraordinary')) ?>" class="extra-edit-form" data-extra-form>
                                                 <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                                                 <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
                                                 <input type="hidden" name="year" value="<?= h($year) ?>">
-                                                <button type="submit" class="danger icon-button" aria-label="Eliminar gasto">
-                                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                                        <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 12h12a2 2 0 0 0 2-2V9H4v10a2 2 0 0 0 2 2Z" fill="currentColor"/>
-                                                    </svg>
-                                                </button>
+                                                <label>
+                                                    Descripción
+                                                    <input type="text" name="descripcion" value="<?= h($row['descripcion']) ?>" required data-extra-description>
+                                                </label>
+                                                <label>
+                                                    Importe
+                                                    <input type="number" step="0.01" min="0" name="importe" value="<?= h((string)$row['importe']) ?>" required>
+                                                </label>
+                                                <label>
+                                                    Categoría
+                                                    <select name="categoria_id" required data-extra-category>
+                                                        <option value="">Selecciona</option>
+                                                        <?php foreach ($activeCategories as $cat): ?>
+                                                            <option value="<?= (int)$cat['id'] ?>" data-keywords="<?= h($cat['keywords']) ?>" <?= (int)$row['categoria_id'] === (int)$cat['id'] ? 'selected' : '' ?>>
+                                                                <?= h($cat['nombre']) ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </label>
+                                                <div class="actions">
+                                                    <button type="submit" class="primary">Guardar cambios</button>
+                                                </div>
                                             </form>
-                                        </div>
+                                        </details>
                                     </div>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </div>
-                        <form method="post" action="<?= h(app_url('index.php?action=add_extraordinary')) ?>" class="extra-form">
+                        <form method="post" action="<?= h(app_url('index.php?action=add_extraordinary')) ?>" class="extra-form" data-extra-form>
                             <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
                             <input type="hidden" name="month" value="<?= h($monthValue) ?>">
                             <label>
-                                Concepto
-                                <input type="text" name="descripcion" placeholder="Ej: Seguro anual" required>
+                                Descripción
+                                <input type="text" name="descripcion" placeholder="Ej: Seguro anual" required data-extra-description>
                             </label>
                             <label>
                                 Importe
@@ -1245,16 +1292,12 @@ function current_url(array $override = []): string {
                             </label>
                             <label>
                                 Categoría
-                                <select name="categoria_id" required>
+                                <select name="categoria_id" required data-extra-category>
                                     <option value="">Selecciona</option>
                                     <?php foreach ($activeCategories as $cat): ?>
-                                        <option value="<?= (int)$cat['id'] ?>"><?= h($cat['nombre']) ?></option>
+                                        <option value="<?= (int)$cat['id'] ?>" data-keywords="<?= h($cat['keywords']) ?>"><?= h($cat['nombre']) ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                            </label>
-                            <label class="full">
-                                Notas
-                                <input type="text" name="notas" placeholder="Opcional">
                             </label>
                             <div class="actions">
                                 <button type="submit" class="primary">Añadir</button>
@@ -1272,6 +1315,22 @@ function current_url(array $override = []): string {
                     <p class="muted">El presupuesto es el protagonista: ajusta rápido y ve el progreso al instante.</p>
                 </div>
                 <div class="panel-actions">
+                    <div class="budget-summary">
+                        <div>
+                            <span>Ingresos previstos</span>
+                            <strong><?= format_amount($budgetTotals['ingresos']) ?> €</strong>
+                        </div>
+                        <div>
+                            <span>Gastos previstos</span>
+                            <strong><?= format_amount($budgetTotals['gastos']) ?> €</strong>
+                        </div>
+                        <div>
+                            <span>Balance previsto</span>
+                            <strong class="<?= $budgetBalance >= 0 ? 'positive' : 'negative' ?>">
+                                <?= format_amount($budgetBalance) ?> €
+                            </strong>
+                        </div>
+                    </div>
                     <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
                         <input type="hidden" name="page" value="budget">
                         <input type="month" name="month" value="<?= h($month) ?>">
