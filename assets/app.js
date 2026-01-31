@@ -123,6 +123,11 @@ const copyBudgets = document.getElementById('copyBudgets');
 const budgetColumnsSelect = document.getElementById('budgetColumns');
 const budgetGrid = document.querySelector('.budget-grid');
 const budgetColumnsKey = 'budget-columns';
+const extraColumnsSelect = document.getElementById('extraColumns');
+const extraGrid = document.querySelector('.extra-grid');
+const extraColumnsKey = 'extra-columns';
+const menuToggle = document.getElementById('menuToggle');
+const appNav = document.getElementById('appNav');
 
 document.querySelectorAll('[data-edit]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -187,3 +192,43 @@ if (budgetColumnsSelect && budgetGrid) {
         window.localStorage.setItem(budgetColumnsKey, value);
     });
 }
+
+function applyExtraColumns(value) {
+    if (!extraGrid) return;
+    extraGrid.style.setProperty('--extra-columns', value);
+}
+
+if (extraColumnsSelect && extraGrid) {
+    const savedColumns = window.localStorage.getItem(extraColumnsKey);
+    const initialColumns = savedColumns || extraColumnsSelect.value;
+    extraColumnsSelect.value = initialColumns;
+    applyExtraColumns(initialColumns);
+    extraColumnsSelect.addEventListener('change', (event) => {
+        const value = event.target.value;
+        applyExtraColumns(value);
+        window.localStorage.setItem(extraColumnsKey, value);
+    });
+}
+
+function closeNav() {
+    document.body.classList.remove('nav-open');
+    if (menuToggle) {
+        menuToggle.setAttribute('aria-expanded', 'false');
+    }
+}
+
+menuToggle?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const isOpen = document.body.classList.toggle('nav-open');
+    menuToggle.setAttribute('aria-expanded', String(isOpen));
+});
+
+document.addEventListener('click', (event) => {
+    if (!document.body.classList.contains('nav-open')) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (appNav?.contains(target) || menuToggle?.contains(target)) return;
+    closeNav();
+});
+
+appNav?.addEventListener('click', () => closeNav());
