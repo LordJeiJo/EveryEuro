@@ -154,7 +154,7 @@ function init_db(array $config): void {
             ['Regalos', 'gasto'],
             ['Inversión', 'ahorro'],
             ['Ahorro', 'ahorro'],
-            ['Imprevistos', 'extra'],
+            ['Imprevistos', 'gasto'],
         ];
         $stmt = $pdo->prepare('INSERT INTO categories (nombre, tipo, orden, activa) VALUES (?, ?, ?, 1)');
         foreach ($seed as $idx => $row) {
