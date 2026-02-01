@@ -16,6 +16,14 @@ function redirect_with_message(string $message, string $location = 'index.php'):
     exit;
 }
 
+function normalize_category_type(string $type): string {
+    return in_array($type, ['ingreso', 'gasto', 'ahorro'], true) ? $type : 'gasto';
+}
+
+function money_round(float $amount): float {
+    return round($amount, 2);
+}
+
 function safe_redirect_target(string $target, string $fallback = 'index.php'): string {
     $fallbackUrl = app_url($fallback);
     $target = trim($target);
@@ -50,7 +58,7 @@ function save_budget(PDO $pdo, string $month, int $categoryId, ?string $plannedR
         return;
     }
 
-    $plannedAmount = max(0, (float)($plannedAmount ?? 0));
+    $plannedAmount = money_round(max(0, (float)($plannedAmount ?? 0)));
     $stmt = $pdo->prepare('INSERT INTO budgets (month, category_id, planned_amount, notes) VALUES (?, ?, ?, ?)
         ON CONFLICT(month, category_id) DO UPDATE SET planned_amount = excluded.planned_amount, notes = excluded.notes');
     $stmt->execute([$month, $categoryId, $plannedAmount, $notes]);
@@ -183,7 +191,7 @@ if ($action === 'save_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $id = (int)($_POST['id'] ?? 0);
     $nombre = trim($_POST['nombre'] ?? '');
-    $tipo = $_POST['tipo'] ?? 'gasto';
+    $tipo = normalize_category_type($_POST['tipo'] ?? 'gasto');
     $orden = (int)($_POST['orden'] ?? 0);
     $activa = isset($_POST['activa']) ? 1 : 0;
     $keywordsRaw = trim((string)($_POST['keywords'] ?? ''));
@@ -497,7 +505,14 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect_with_message('Copia importada.', 'index.php?page=backup');
 }
 
+$pdo->prepare("UPDATE categories SET tipo = 'gasto' WHERE tipo NOT IN ('ingreso', 'gasto', 'ahorro')")->execute();
+
 $categories = $pdo->query('SELECT * FROM categories ORDER BY orden, nombre')->fetchAll();
+foreach ($categories as $idx => $cat) {
+    $cat['tipo'] = normalize_category_type($cat['tipo']);
+    $cat['keywords'] = $cat['keywords'] ?? '';
+    $categories[$idx] = $cat;
+}
 $accounts = $pdo->query('SELECT * FROM accounts ORDER BY orden, nombre')->fetchAll();
 $activeAccounts = array_values(array_filter($accounts, static function (array $account): bool {
     return (int)$account['activa'] === 1;
@@ -564,18 +579,18 @@ foreach ($movements as $move) {
 $totals = $pdo->prepare('SELECT SUM(CASE WHEN importe > 0 THEN importe ELSE 0 END) as ingresos, SUM(CASE WHEN importe < 0 THEN importe ELSE 0 END) as gastos FROM movements WHERE mes = ?');
 $totals->execute([$month]);
 $totalsRow = $totals->fetch();
-$ingresos = (float)($totalsRow['ingresos'] ?? 0);
-$gastos = (float)($totalsRow['gastos'] ?? 0);
-$balance = $ingresos + $gastos;
-$realGastos = abs($gastos);
+$ingresos = money_round((float)($totalsRow['ingresos'] ?? 0));
+$gastos = money_round((float)($totalsRow['gastos'] ?? 0));
+$balance = money_round($ingresos + $gastos);
+$realGastos = money_round(abs($gastos));
 
 $yearTotals = $pdo->prepare('SELECT SUM(CASE WHEN importe > 0 THEN importe ELSE 0 END) as ingresos, SUM(CASE WHEN importe < 0 THEN importe ELSE 0 END) as gastos FROM movements WHERE mes LIKE ?');
 $yearTotals->execute([$yearLike]);
 $yearTotalsRow = $yearTotals->fetch();
-$yearIngresos = (float)($yearTotalsRow['ingresos'] ?? 0);
-$yearGastos = (float)($yearTotalsRow['gastos'] ?? 0);
-$yearBalance = $yearIngresos + $yearGastos;
-$yearRealGastos = abs($yearGastos);
+$yearIngresos = money_round((float)($yearTotalsRow['ingresos'] ?? 0));
+$yearGastos = money_round((float)($yearTotalsRow['gastos'] ?? 0));
+$yearBalance = money_round($yearIngresos + $yearGastos);
+$yearRealGastos = money_round(abs($yearGastos));
 
 $budgetStmt = $pdo->prepare('SELECT * FROM budgets WHERE month = ?');
 $budgetStmt->execute([$month]);
@@ -588,14 +603,15 @@ foreach ($budgetRows as $row) {
 $budgetTotals = ['ingresos' => 0.0, 'gastos' => 0.0];
 foreach ($budgetsByCategory as $categoryId => $budget) {
     $type = $categoriesById[$categoryId]['tipo'] ?? 'gasto';
+    $plannedAmount = money_round((float)$budget['planned_amount']);
     if ($type === 'ingreso') {
-        $budgetTotals['ingresos'] += (float)$budget['planned_amount'];
+        $budgetTotals['ingresos'] = money_round($budgetTotals['ingresos'] + $plannedAmount);
     } else {
-        $budgetTotals['gastos'] += (float)$budget['planned_amount'];
+        $budgetTotals['gastos'] = money_round($budgetTotals['gastos'] + $plannedAmount);
     }
 }
 
-$budgetBalance = $budgetTotals['ingresos'] - $budgetTotals['gastos'];
+$budgetBalance = money_round($budgetTotals['ingresos'] - $budgetTotals['gastos']);
 
 $yearBudgetsStmt = $pdo->prepare('SELECT category_id, SUM(planned_amount) as planned_amount FROM budgets WHERE month LIKE ? GROUP BY category_id');
 $yearBudgetsStmt->execute([$yearLike]);
@@ -608,14 +624,15 @@ foreach ($yearBudgetRows as $row) {
 $yearBudgetTotals = ['ingresos' => 0.0, 'gastos' => 0.0];
 foreach ($yearBudgetsByCategory as $categoryId => $budget) {
     $type = $categoriesById[$categoryId]['tipo'] ?? 'gasto';
+    $plannedAmount = money_round((float)$budget['planned_amount']);
     if ($type === 'ingreso') {
-        $yearBudgetTotals['ingresos'] += (float)$budget['planned_amount'];
+        $yearBudgetTotals['ingresos'] = money_round($yearBudgetTotals['ingresos'] + $plannedAmount);
     } else {
-        $yearBudgetTotals['gastos'] += (float)$budget['planned_amount'];
+        $yearBudgetTotals['gastos'] = money_round($yearBudgetTotals['gastos'] + $plannedAmount);
     }
 }
 
-$yearBudgetBalance = $yearBudgetTotals['ingresos'] - $yearBudgetTotals['gastos'];
+$yearBudgetBalance = money_round($yearBudgetTotals['ingresos'] - $yearBudgetTotals['gastos']);
 
 $extraordinaryStmt = $pdo->prepare('SELECT e.*, c.nombre as categoria_nombre FROM extraordinary_expenses e LEFT JOIN categories c ON e.categoria_id = c.id WHERE e.month LIKE ? ORDER BY e.month DESC, e.position ASC, e.id ASC');
 $extraordinaryStmt->execute([$yearLike]);
@@ -698,8 +715,8 @@ $yearSummaryCategories = $yearSummaryCategoriesStmt->fetchAll();
 $actualByCategory = [];
 foreach ($summaryCategories as $row) {
     $actualByCategory[(int)$row['id']] = $row['tipo'] === 'ingreso'
-        ? (float)$row['ingresos']
-        : abs((float)$row['gastos']);
+        ? money_round((float)$row['ingresos'])
+        : money_round(abs((float)$row['gastos']));
 }
 
 $activeCategories = array_values(array_filter($categories, static function (array $cat): bool {
@@ -786,7 +803,6 @@ function current_url(array $override = []): string {
                     <option value="ingreso">Ingreso</option>
                     <option value="gasto" selected>Gasto</option>
                     <option value="ahorro">Ahorro</option>
-                    <option value="extra">Extra</option>
                 </select>
                 <input type="number" name="orden" value="0" min="0">
                 <label class="switch icon-toggle">
@@ -864,7 +880,6 @@ function current_url(array $override = []): string {
                             <option value="ingreso">Ingreso</option>
                             <option value="gasto">Gasto</option>
                             <option value="ahorro">Ahorro</option>
-                            <option value="extra">Extra</option>
                         </select>
                     </label>
                     <label>
@@ -1054,10 +1069,12 @@ function current_url(array $override = []): string {
                     <tbody>
                         <?php foreach ($summaryCategories as $row):
                             $budget = $budgetsByCategory[(int)$row['id']]['planned_amount'] ?? null;
-                            $actual = $row['tipo'] === 'ingreso' ? (float)$row['ingresos'] : abs((float)$row['gastos']);
-                            $budgetValue = $budget !== null ? (float)$budget : 0.0;
+                            $actual = $row['tipo'] === 'ingreso'
+                                ? money_round((float)$row['ingresos'])
+                                : money_round(abs((float)$row['gastos']));
+                            $budgetValue = $budget !== null ? money_round((float)$budget) : 0.0;
                             $hasPositiveBudget = $budgetValue > 0;
-                            $diff = $hasPositiveBudget ? $budgetValue - $actual : null;
+                            $diff = $hasPositiveBudget ? money_round($budgetValue - $actual) : null;
                             $progress = $hasPositiveBudget ? ($actual / $budgetValue) * 100 : null;
                             $isOverBudget = $hasPositiveBudget && $actual > $budgetValue;
                             $isOffBudget = !$hasPositiveBudget && $actual > 0;
@@ -1167,10 +1184,12 @@ function current_url(array $override = []): string {
                     <tbody>
                         <?php foreach ($yearSummaryCategories as $row):
                             $budget = $yearBudgetsByCategory[(int)$row['id']]['planned_amount'] ?? null;
-                            $actual = $row['tipo'] === 'ingreso' ? (float)$row['ingresos'] : abs((float)$row['gastos']);
-                            $budgetValue = $budget !== null ? (float)$budget : 0.0;
+                            $actual = $row['tipo'] === 'ingreso'
+                                ? money_round((float)$row['ingresos'])
+                                : money_round(abs((float)$row['gastos']));
+                            $budgetValue = $budget !== null ? money_round((float)$budget) : 0.0;
                             $hasPositiveBudget = $budgetValue > 0;
-                            $diff = $hasPositiveBudget ? $budgetValue - $actual : null;
+                            $diff = $hasPositiveBudget ? money_round($budgetValue - $actual) : null;
                             $progress = $hasPositiveBudget ? ($actual / $budgetValue) * 100 : null;
                             $isOverBudget = $hasPositiveBudget && $actual > $budgetValue;
                             $isOffBudget = !$hasPositiveBudget && $actual > 0;
@@ -1428,9 +1447,9 @@ function current_url(array $override = []): string {
                 <div class="budget-grid">
                     <?php foreach ($activeCategories as $cat):
                         $budget = $budgetsByCategory[(int)$cat['id']] ?? null;
-                        $planned = (float)($budget['planned_amount'] ?? 0);
-                        $actual = $actualByCategory[(int)$cat['id']] ?? 0.0;
-                        $remaining = $planned - $actual;
+                        $planned = money_round((float)($budget['planned_amount'] ?? 0));
+                        $actual = money_round($actualByCategory[(int)$cat['id']] ?? 0.0);
+                        $remaining = money_round($planned - $actual);
                         $progress = $planned > 0 ? min(100, ($actual / $planned) * 100) : 0;
                         ?>
                         <div class="budget-card">
