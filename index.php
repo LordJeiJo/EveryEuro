@@ -24,6 +24,14 @@ function money_round(float $amount): float {
     return round($amount, 2);
 }
 
+function normalize_color(string $color, string $fallback = '#ffffff'): string {
+    $color = trim($color);
+    if (preg_match('/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/', $color)) {
+        return strtolower($color);
+    }
+    return $fallback;
+}
+
 function safe_redirect_target(string $target, string $fallback = 'index.php'): string {
     $fallbackUrl = app_url($fallback);
     $target = trim($target);
@@ -378,6 +386,121 @@ if ($action === 'move_extraordinary' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect_with_message('Orden actualizado.', 'index.php?page=extraordinary&year=' . urlencode((string)$yearValue));
 }
 
+if ($action === 'add_extra_fund_snapshot' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $snapshotDate = $_POST['snapshot_date'] ?? date('Y-m-d');
+    $amount = money_round((float)str_replace(',', '.', $_POST['amount'] ?? '0'));
+    if ($snapshotDate === '' || $amount < 0) {
+        redirect_with_message('Completa fecha e importe para continuar.', 'index.php?page=funds');
+    }
+    $stmt = $pdo->prepare('INSERT INTO extraordinary_fund_snapshots (snapshot_date, amount) VALUES (?, ?)');
+    $stmt->execute([$snapshotDate, $amount]);
+    redirect_with_message('Captura añadida.', 'index.php?page=funds');
+}
+
+if ($action === 'update_extra_fund_snapshot' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    $snapshotDate = $_POST['snapshot_date'] ?? date('Y-m-d');
+    $amount = money_round((float)str_replace(',', '.', $_POST['amount'] ?? '0'));
+    if ($id <= 0 || $snapshotDate === '' || $amount < 0) {
+        redirect_with_message('Completa fecha e importe para actualizar.', 'index.php?page=funds');
+    }
+    $stmt = $pdo->prepare('UPDATE extraordinary_fund_snapshots SET snapshot_date = ?, amount = ? WHERE id = ?');
+    $stmt->execute([$snapshotDate, $amount, $id]);
+    redirect_with_message('Captura actualizada.', 'index.php?page=funds');
+}
+
+if ($action === 'delete_extra_fund_snapshot' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id > 0) {
+        $stmt = $pdo->prepare('DELETE FROM extraordinary_fund_snapshots WHERE id = ?');
+        $stmt->execute([$id]);
+    }
+    redirect_with_message('Captura eliminada.', 'index.php?page=funds');
+}
+
+if ($action === 'save_emergency_goal' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $goal = money_round((float)str_replace(',', '.', $_POST['goal'] ?? '0'));
+    if ($goal < 0) {
+        $goal = 0;
+    }
+    $stmt = $pdo->prepare('INSERT INTO fund_settings (key, value) VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value');
+    $stmt->execute(['emergency_goal', (string)$goal]);
+    redirect_with_message('Meta actualizada.', 'index.php?page=funds');
+}
+
+if ($action === 'save_emergency_platform' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+    $color = normalize_color($_POST['color'] ?? '#ffffff', '#ffffff');
+    if ($name === '') {
+        redirect_with_message('Nombre requerido.', 'index.php?page=funds');
+    }
+    if ($id > 0) {
+        $stmt = $pdo->prepare('UPDATE emergency_platforms SET name = ?, color = ? WHERE id = ?');
+        $stmt->execute([$name, $color, $id]);
+        redirect_with_message('Plataforma actualizada.', 'index.php?page=funds');
+    }
+    $position = (int)$pdo->query('SELECT COALESCE(MAX(position), 0) FROM emergency_platforms')->fetchColumn();
+    $stmt = $pdo->prepare('INSERT INTO emergency_platforms (name, color, position) VALUES (?, ?, ?)');
+    $stmt->execute([$name, $color, $position + 1]);
+    redirect_with_message('Plataforma creada.', 'index.php?page=funds');
+}
+
+if ($action === 'delete_emergency_platform' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id > 0) {
+        $stmt = $pdo->prepare('DELETE FROM emergency_fund_snapshots WHERE platform_id = ?');
+        $stmt->execute([$id]);
+        $stmt = $pdo->prepare('DELETE FROM emergency_platforms WHERE id = ?');
+        $stmt->execute([$id]);
+    }
+    redirect_with_message('Plataforma eliminada.', 'index.php?page=funds');
+}
+
+if ($action === 'add_emergency_snapshot' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $snapshotDate = $_POST['snapshot_date'] ?? date('Y-m-d');
+    $amount = money_round((float)str_replace(',', '.', $_POST['amount'] ?? '0'));
+    $platformId = (int)($_POST['platform_id'] ?? 0);
+    if ($snapshotDate === '' || $amount < 0 || $platformId <= 0) {
+        redirect_with_message('Completa fecha, importe y plataforma.', 'index.php?page=funds');
+    }
+    $stmt = $pdo->prepare('INSERT INTO emergency_fund_snapshots (snapshot_date, amount, platform_id) VALUES (?, ?, ?)');
+    $stmt->execute([$snapshotDate, $amount, $platformId]);
+    redirect_with_message('Captura añadida.', 'index.php?page=funds');
+}
+
+if ($action === 'update_emergency_snapshot' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    $snapshotDate = $_POST['snapshot_date'] ?? date('Y-m-d');
+    $amount = money_round((float)str_replace(',', '.', $_POST['amount'] ?? '0'));
+    $platformId = (int)($_POST['platform_id'] ?? 0);
+    if ($id <= 0 || $snapshotDate === '' || $amount < 0 || $platformId <= 0) {
+        redirect_with_message('Completa los datos para actualizar.', 'index.php?page=funds');
+    }
+    $stmt = $pdo->prepare('UPDATE emergency_fund_snapshots SET snapshot_date = ?, amount = ?, platform_id = ? WHERE id = ?');
+    $stmt->execute([$snapshotDate, $amount, $platformId, $id]);
+    redirect_with_message('Captura actualizada.', 'index.php?page=funds');
+}
+
+if ($action === 'delete_emergency_snapshot' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id > 0) {
+        $stmt = $pdo->prepare('DELETE FROM emergency_fund_snapshots WHERE id = ?');
+        $stmt->execute([$id]);
+    }
+    redirect_with_message('Captura eliminada.', 'index.php?page=funds');
+}
+
 if ($action === 'delete_category' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $id = (int)($_POST['id'] ?? 0);
@@ -404,6 +527,10 @@ if ($action === 'export_backup') {
         'rules' => $pdo->query('SELECT * FROM rules')->fetchAll(),
         'budgets' => $pdo->query('SELECT * FROM budgets')->fetchAll(),
         'extraordinary_expenses' => $pdo->query('SELECT * FROM extraordinary_expenses')->fetchAll(),
+        'extraordinary_fund_snapshots' => $pdo->query('SELECT * FROM extraordinary_fund_snapshots')->fetchAll(),
+        'emergency_platforms' => $pdo->query('SELECT * FROM emergency_platforms')->fetchAll(),
+        'emergency_fund_snapshots' => $pdo->query('SELECT * FROM emergency_fund_snapshots')->fetchAll(),
+        'fund_settings' => $pdo->query('SELECT * FROM fund_settings')->fetchAll(),
     ];
     $filename = 'everyeuro-backup-' . date('Ymd-His') . '.json';
     header('Content-Type: application/json');
@@ -430,6 +557,10 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec('DELETE FROM rules');
         $pdo->exec('DELETE FROM budgets');
         $pdo->exec('DELETE FROM extraordinary_expenses');
+        $pdo->exec('DELETE FROM extraordinary_fund_snapshots');
+        $pdo->exec('DELETE FROM emergency_fund_snapshots');
+        $pdo->exec('DELETE FROM emergency_platforms');
+        $pdo->exec('DELETE FROM fund_settings');
         $insertMove = $pdo->prepare('INSERT INTO movements (id, fecha, descripcion, importe, categoria, notas, estado, mes, cuenta) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($payload['movements'] ?? [] as $row) {
             $insertMove->execute([
@@ -495,6 +626,39 @@ if ($action === 'import_backup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 $row['categoria_id'] ?? null,
                 $row['notas'] ?? '',
                 $row['position'] ?? 0,
+            ]);
+        }
+        $insertExtraSnapshot = $pdo->prepare('INSERT INTO extraordinary_fund_snapshots (id, snapshot_date, amount) VALUES (?, ?, ?)');
+        foreach ($payload['extraordinary_fund_snapshots'] ?? [] as $row) {
+            $insertExtraSnapshot->execute([
+                $row['id'],
+                $row['snapshot_date'],
+                $row['amount'],
+            ]);
+        }
+        $insertEmergencyPlatform = $pdo->prepare('INSERT INTO emergency_platforms (id, name, color, position) VALUES (?, ?, ?, ?)');
+        foreach ($payload['emergency_platforms'] ?? [] as $row) {
+            $insertEmergencyPlatform->execute([
+                $row['id'],
+                $row['name'],
+                $row['color'],
+                $row['position'] ?? 0,
+            ]);
+        }
+        $insertEmergencySnapshot = $pdo->prepare('INSERT INTO emergency_fund_snapshots (id, snapshot_date, amount, platform_id) VALUES (?, ?, ?, ?)');
+        foreach ($payload['emergency_fund_snapshots'] ?? [] as $row) {
+            $insertEmergencySnapshot->execute([
+                $row['id'],
+                $row['snapshot_date'],
+                $row['amount'],
+                $row['platform_id'],
+            ]);
+        }
+        $insertFundSetting = $pdo->prepare('INSERT INTO fund_settings (key, value) VALUES (?, ?)');
+        foreach ($payload['fund_settings'] ?? [] as $row) {
+            $insertFundSetting->execute([
+                $row['key'],
+                $row['value'],
             ]);
         }
         $pdo->commit();
@@ -678,6 +842,105 @@ function ring_overflow(int $ratio): int {
     return max(0, $ratio - 100);
 }
 
+$extraFundSnapshotsStmt = $pdo->query('SELECT * FROM extraordinary_fund_snapshots ORDER BY snapshot_date DESC, id DESC');
+$extraFundSnapshots = $extraFundSnapshotsStmt->fetchAll();
+$extraFundSnapshotsAsc = $pdo->query('SELECT * FROM extraordinary_fund_snapshots ORDER BY snapshot_date ASC, id ASC')->fetchAll();
+$extraFundCurrent = money_round((float)($extraFundSnapshots[0]['amount'] ?? 0));
+$extraFundGoal = money_round((float)$extraordinaryYearTotal);
+$extraFundRatio = $extraFundGoal > 0 ? (int)round(($extraFundCurrent / $extraFundGoal) * 100) : 0;
+$extraFundProgress = ring_progress($extraFundRatio);
+$extraFundOverflow = ring_overflow($extraFundRatio);
+$extraFundMax = 0.0;
+foreach ($extraFundSnapshotsAsc as $snapshot) {
+    $extraFundMax = max($extraFundMax, (float)$snapshot['amount']);
+}
+
+$fundSettingsStmt = $pdo->prepare('SELECT value FROM fund_settings WHERE key = ?');
+$fundSettingsStmt->execute(['emergency_goal']);
+$emergencyGoalRow = $fundSettingsStmt->fetch();
+$emergencyGoal = money_round((float)($emergencyGoalRow['value'] ?? 0));
+
+$emergencyPlatforms = $pdo->query('SELECT * FROM emergency_platforms ORDER BY position, name')->fetchAll();
+$emergencyPlatformById = [];
+foreach ($emergencyPlatforms as $platform) {
+    $emergencyPlatformById[(int)$platform['id']] = $platform;
+}
+
+$emergencySnapshotsStmt = $pdo->query('SELECT s.*, p.name as platform_name, p.color as platform_color
+    FROM emergency_fund_snapshots s
+    JOIN emergency_platforms p ON p.id = s.platform_id
+    ORDER BY s.snapshot_date DESC, s.id DESC');
+$emergencySnapshots = $emergencySnapshotsStmt->fetchAll();
+
+$emergencyLatestByPlatform = [];
+foreach ($emergencySnapshots as $snapshot) {
+    $platformId = (int)$snapshot['platform_id'];
+    if (!isset($emergencyLatestByPlatform[$platformId])) {
+        $emergencyLatestByPlatform[$platformId] = $snapshot;
+    }
+}
+
+$emergencyCurrentTotal = 0.0;
+foreach ($emergencyLatestByPlatform as $snapshot) {
+    $emergencyCurrentTotal = money_round($emergencyCurrentTotal + (float)$snapshot['amount']);
+}
+$emergencyRatio = $emergencyGoal > 0 ? (int)round(($emergencyCurrentTotal / $emergencyGoal) * 100) : 0;
+$emergencyProgress = ring_progress($emergencyRatio);
+$emergencyOverflow = ring_overflow($emergencyRatio);
+
+$emergencyPieSegments = [];
+$emergencyPieTotal = $emergencyCurrentTotal;
+foreach ($emergencyPlatforms as $platform) {
+    $platformId = (int)$platform['id'];
+    $snapshot = $emergencyLatestByPlatform[$platformId] ?? null;
+    if (!$snapshot) {
+        continue;
+    }
+    $amount = (float)$snapshot['amount'];
+    if ($amount <= 0 || $emergencyPieTotal <= 0) {
+        continue;
+    }
+    $emergencyPieSegments[] = [
+        'name' => $platform['name'],
+        'color' => $platform['color'],
+        'amount' => $amount,
+        'percent' => ($amount / $emergencyPieTotal) * 100,
+    ];
+}
+
+$emergencyPieGradient = '';
+if (!empty($emergencyPieSegments)) {
+    $stops = [];
+    $cursor = 0.0;
+    foreach ($emergencyPieSegments as $segment) {
+        $start = $cursor;
+        $cursor += $segment['percent'];
+        $stops[] = $segment['color'] . ' ' . $start . '% ' . $cursor . '%';
+    }
+    $emergencyPieGradient = 'conic-gradient(' . implode(', ', $stops) . ')';
+}
+
+$emergencySnapshotsByDate = [];
+foreach ($emergencySnapshots as $snapshot) {
+    $dateKey = $snapshot['snapshot_date'];
+    $platformId = (int)$snapshot['platform_id'];
+    $emergencySnapshotsByDate[$dateKey] ??= [];
+    $emergencySnapshotsByDate[$dateKey][$platformId] = ($emergencySnapshotsByDate[$dateKey][$platformId] ?? 0) + (float)$snapshot['amount'];
+}
+$emergencyDates = array_keys($emergencySnapshotsByDate);
+sort($emergencyDates);
+
+$emergencyTotalsByDate = [];
+$emergencyMaxTotal = 0.0;
+foreach ($emergencyDates as $dateKey) {
+    $total = 0.0;
+    foreach ($emergencySnapshotsByDate[$dateKey] as $amount) {
+        $total += (float)$amount;
+    }
+    $emergencyTotalsByDate[$dateKey] = $total;
+    $emergencyMaxTotal = max($emergencyMaxTotal, $total);
+}
+
 $summaryRatios = [
     'ingresos' => ratio_percent($ingresos, $budgetTotals['ingresos']),
     'gastos' => ratio_percent($realGastos, $budgetTotals['gastos']),
@@ -765,6 +1028,7 @@ function current_url(array $override = []): string {
             <a href="<?= h(app_url('index.php?page=extraordinary')) ?>" class="<?= $page === 'extraordinary' ? 'active' : '' ?>">Extraordinarios</a>
             <a href="<?= h(app_url('index.php?page=budget')) ?>" class="<?= $page === 'budget' ? 'active' : '' ?>">Presupuesto</a>
             <a href="<?= h(app_url('index.php?page=summary')) ?>" class="<?= $page === 'summary' ? 'active' : '' ?>">Análisis</a>
+            <a href="<?= h(app_url('index.php?page=funds')) ?>" class="<?= $page === 'funds' ? 'active' : '' ?>">Fondos</a>
             <a href="<?= h(app_url('index.php?page=backup')) ?>" class="<?= $page === 'backup' ? 'active' : '' ?>">Backup</a>
             <a href="<?= h(app_url('index.php?action=logout')) ?>">Salir</a>
         </nav>
@@ -1494,6 +1758,329 @@ function current_url(array $override = []): string {
                 </div>
             </form>
         </section>
+    <?php elseif ($page === 'funds'): ?>
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>Fondos</h2>
+                    <p class="muted">Controla los colchones de extraordinarios y emergencias en un solo vistazo.</p>
+                </div>
+                <form class="inline-form" method="get" action="<?= h(app_url('index.php')) ?>">
+                    <input type="hidden" name="page" value="funds">
+                    <input type="number" name="year" value="<?= h($year) ?>" min="2000" max="2100">
+                    <button type="submit" class="ghost">Cambiar año</button>
+                </form>
+            </div>
+            <div class="funds-grid">
+                <div class="fund-card">
+                    <div class="fund-card-header">
+                        <div>
+                            <h3>Extraordinarios</h3>
+                            <p class="muted">Meta basada en el total anual de <?= h($year) ?>.</p>
+                        </div>
+                        <div class="summary-ring <?= $extraFundOverflow > 0 ? 'over' : '' ?>" style="--progress: <?= $extraFundProgress ?>; --overflow: <?= $extraFundOverflow ?>; --ring-color: var(--primary)">
+                            <span><?= (int)round($extraFundRatio) ?>%</span>
+                        </div>
+                    </div>
+                    <div class="fund-metrics">
+                        <div>
+                            <span>Disponible actual</span>
+                            <strong><?= format_amount($extraFundCurrent) ?> €</strong>
+                        </div>
+                        <div>
+                            <span>Meta anual</span>
+                            <strong><?= format_amount($extraFundGoal) ?> €</strong>
+                        </div>
+                        <div>
+                            <span>Progreso</span>
+                            <strong><?= (int)round($extraFundRatio) ?>%</strong>
+                        </div>
+                    </div>
+                    <div class="fund-chart">
+                        <h4>Evolución del fondo</h4>
+                        <?php if (empty($extraFundSnapshotsAsc)): ?>
+                            <p class="muted">Todavía no hay capturas registradas.</p>
+                        <?php else: ?>
+                            <div class="fund-bars">
+                                <?php foreach ($extraFundSnapshotsAsc as $snapshot):
+                                    $amount = (float)$snapshot['amount'];
+                                    $height = $extraFundMax > 0 ? ($amount / $extraFundMax) * 100 : 0;
+                                    ?>
+                                    <div class="fund-bar">
+                                        <span style="height: <?= $height ?>%"></span>
+                                        <small><?= h($snapshot['snapshot_date']) ?></small>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <form method="post" action="<?= h(app_url('index.php?action=add_extra_fund_snapshot')) ?>" class="fund-form">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <label>
+                            Fecha
+                            <input type="date" name="snapshot_date" value="<?= h(date('Y-m-d')) ?>" required>
+                        </label>
+                        <label>
+                            Importe disponible
+                            <input type="number" step="0.01" min="0" name="amount" placeholder="0,00" required>
+                        </label>
+                        <div class="actions">
+                            <button type="submit" class="primary">Añadir captura</button>
+                        </div>
+                    </form>
+                    <div class="fund-capture-list">
+                        <h4>Capturas registradas</h4>
+                        <?php if (empty($extraFundSnapshots)): ?>
+                            <p class="muted">Sin capturas todavía.</p>
+                        <?php else: ?>
+                            <?php foreach ($extraFundSnapshots as $snapshot): ?>
+                                <div class="fund-capture">
+                                    <div class="fund-capture-info">
+                                        <strong><?= h($snapshot['snapshot_date']) ?></strong>
+                                        <span><?= format_amount((float)$snapshot['amount']) ?> €</span>
+                                    </div>
+                                    <div class="fund-capture-actions">
+                                        <details>
+                                            <summary>Editar</summary>
+                                            <form method="post" action="<?= h(app_url('index.php?action=update_extra_fund_snapshot')) ?>" class="fund-edit-form">
+                                                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                                <input type="hidden" name="id" value="<?= (int)$snapshot['id'] ?>">
+                                                <label>
+                                                    Fecha
+                                                    <input type="date" name="snapshot_date" value="<?= h($snapshot['snapshot_date']) ?>" required>
+                                                </label>
+                                                <label>
+                                                    Importe
+                                                    <input type="number" step="0.01" min="0" name="amount" value="<?= h((string)$snapshot['amount']) ?>" required>
+                                                </label>
+                                                <div class="actions">
+                                                    <button type="submit" class="primary">Guardar</button>
+                                                </div>
+                                            </form>
+                                        </details>
+                                        <form method="post" action="<?= h(app_url('index.php?action=delete_extra_fund_snapshot')) ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                            <input type="hidden" name="id" value="<?= (int)$snapshot['id'] ?>">
+                                            <button type="submit" class="danger ghost">Eliminar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="fund-card">
+                    <div class="fund-card-header">
+                        <div>
+                            <h3>Emergencias</h3>
+                            <p class="muted">Capturas por plataforma con reparto y evolución.</p>
+                        </div>
+                        <div class="fund-card-actions">
+                            <button type="button" class="ghost" id="openPlatformDialog">Plataformas</button>
+                            <div class="summary-ring <?= $emergencyOverflow > 0 ? 'over' : '' ?>" style="--progress: <?= $emergencyProgress ?>; --overflow: <?= $emergencyOverflow ?>; --ring-color: var(--success)">
+                                <span><?= (int)round($emergencyRatio) ?>%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="fund-metrics">
+                        <div>
+                            <span>Total actual</span>
+                            <strong><?= format_amount($emergencyCurrentTotal) ?> €</strong>
+                        </div>
+                        <div>
+                            <span>Meta del fondo</span>
+                            <strong><?= format_amount($emergencyGoal) ?> €</strong>
+                        </div>
+                        <div>
+                            <span>Progreso</span>
+                            <strong><?= (int)round($emergencyRatio) ?>%</strong>
+                        </div>
+                    </div>
+                    <form method="post" action="<?= h(app_url('index.php?action=save_emergency_goal')) ?>" class="inline-form fund-goal-form">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <label>
+                            Meta editable
+                            <input type="number" step="0.01" min="0" name="goal" value="<?= h((string)$emergencyGoal) ?>" placeholder="0,00">
+                        </label>
+                        <button type="submit" class="ghost">Actualizar meta</button>
+                    </form>
+                    <div class="fund-chart">
+                        <h4>Distribución por plataforma</h4>
+                        <?php if (empty($emergencyPieSegments)): ?>
+                            <p class="muted">Añade capturas para ver el reparto.</p>
+                        <?php else: ?>
+                            <div class="fund-pie">
+                                <div class="fund-pie-chart" style="background: <?= h($emergencyPieGradient ?: 'conic-gradient(var(--primary) 0%, rgba(148, 163, 184, 0.18) 0)') ?>;">
+                                    <span><?= format_amount($emergencyCurrentTotal) ?> €</span>
+                                </div>
+                                <div class="fund-pie-legend">
+                                    <?php foreach ($emergencyPieSegments as $segment): ?>
+                                        <div class="fund-legend-row">
+                                            <span class="platform-dot" style="--dot-color: <?= h($segment['color']) ?>"></span>
+                                            <span><?= h($segment['name']) ?></span>
+                                            <strong><?= format_amount((float)$segment['amount']) ?> €</strong>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="fund-chart">
+                        <h4>Evolución por plataforma</h4>
+                        <?php if (empty($emergencyDates)): ?>
+                            <p class="muted">Sin capturas registradas.</p>
+                        <?php else: ?>
+                            <div class="fund-stack-chart">
+                                <?php foreach ($emergencyDates as $dateKey):
+                                    $total = $emergencyTotalsByDate[$dateKey] ?? 0.0;
+                                    $height = $emergencyMaxTotal > 0 ? ($total / $emergencyMaxTotal) * 100 : 0;
+                                    ?>
+                                    <div class="fund-stack-column">
+                                        <div class="fund-stack-bar" style="height: <?= $height ?>%">
+                                            <?php foreach ($emergencyPlatforms as $platform):
+                                                $platformId = (int)$platform['id'];
+                                                $amount = $emergencySnapshotsByDate[$dateKey][$platformId] ?? 0.0;
+                                                if ($amount <= 0) {
+                                                    continue;
+                                                }
+                                                $segmentHeight = $total > 0 ? ($amount / $total) * 100 : 0;
+                                                ?>
+                                                <span class="fund-stack-segment" style="height: <?= $segmentHeight ?>%; background: <?= h($platform['color']) ?>;" title="<?= h($platform['name']) ?> · <?= format_amount((float)$amount) ?> €"></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <small><?= h($dateKey) ?></small>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <form method="post" action="<?= h(app_url('index.php?action=add_emergency_snapshot')) ?>" class="fund-form">
+                        <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                        <label>
+                            Fecha
+                            <input type="date" name="snapshot_date" value="<?= h(date('Y-m-d')) ?>" required>
+                        </label>
+                        <label>
+                            Importe
+                            <input type="number" step="0.01" min="0" name="amount" placeholder="0,00" required>
+                        </label>
+                        <label>
+                            Plataforma
+                            <select name="platform_id" required>
+                                <option value="">Selecciona</option>
+                                <?php foreach ($emergencyPlatforms as $platform): ?>
+                                    <option value="<?= (int)$platform['id'] ?>"><?= h($platform['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <div class="actions">
+                            <button type="submit" class="primary" <?= empty($emergencyPlatforms) ? 'disabled' : '' ?>>Añadir captura</button>
+                        </div>
+                        <?php if (empty($emergencyPlatforms)): ?>
+                            <p class="muted">Primero crea plataformas para poder capturar movimientos.</p>
+                        <?php endif; ?>
+                    </form>
+                    <div class="fund-capture-list">
+                        <h4>Capturas registradas</h4>
+                        <?php if (empty($emergencySnapshots)): ?>
+                            <p class="muted">Sin capturas todavía.</p>
+                        <?php else: ?>
+                            <?php foreach ($emergencySnapshots as $snapshot): ?>
+                                <div class="fund-capture">
+                                    <div class="fund-capture-info">
+                                        <strong><?= h($snapshot['snapshot_date']) ?></strong>
+                                        <span class="fund-platform">
+                                            <span class="platform-dot" style="--dot-color: <?= h($snapshot['platform_color']) ?>"></span>
+                                            <?= h($snapshot['platform_name']) ?>
+                                        </span>
+                                        <span><?= format_amount((float)$snapshot['amount']) ?> €</span>
+                                    </div>
+                                    <div class="fund-capture-actions">
+                                        <details>
+                                            <summary>Editar</summary>
+                                            <form method="post" action="<?= h(app_url('index.php?action=update_emergency_snapshot')) ?>" class="fund-edit-form">
+                                                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                                <input type="hidden" name="id" value="<?= (int)$snapshot['id'] ?>">
+                                                <label>
+                                                    Fecha
+                                                    <input type="date" name="snapshot_date" value="<?= h($snapshot['snapshot_date']) ?>" required>
+                                                </label>
+                                                <label>
+                                                    Importe
+                                                    <input type="number" step="0.01" min="0" name="amount" value="<?= h((string)$snapshot['amount']) ?>" required>
+                                                </label>
+                                                <label>
+                                                    Plataforma
+                                                    <select name="platform_id" required>
+                                                        <?php foreach ($emergencyPlatforms as $platform): ?>
+                                                            <option value="<?= (int)$platform['id'] ?>" <?= (int)$platform['id'] === (int)$snapshot['platform_id'] ? 'selected' : '' ?>>
+                                                                <?= h($platform['name']) ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </label>
+                                                <div class="actions">
+                                                    <button type="submit" class="primary">Guardar</button>
+                                                </div>
+                                            </form>
+                                        </details>
+                                        <form method="post" action="<?= h(app_url('index.php?action=delete_emergency_snapshot')) ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                            <input type="hidden" name="id" value="<?= (int)$snapshot['id'] ?>">
+                                            <button type="submit" class="danger ghost">Eliminar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <dialog id="platformDialog">
+            <form method="post" action="<?= h(app_url('index.php?action=save_emergency_platform')) ?>" class="dialog-form" id="platformForm">
+                <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                <h3>Plataformas de emergencia</h3>
+                <input type="hidden" name="id" id="platformId" value="0">
+                <label>
+                    Nombre
+                    <input type="text" name="name" id="platformName" placeholder="Ej: ING" required>
+                </label>
+                <label>
+                    Color
+                    <input type="color" name="color" id="platformColor" value="#ffffff">
+                </label>
+                <menu>
+                    <button type="button" class="ghost" id="platformReset">Nueva</button>
+                    <button type="button" class="ghost" id="closePlatform">Cerrar</button>
+                    <button type="submit" class="primary">Guardar</button>
+                </menu>
+            </form>
+            <div class="dialog-list">
+                <?php if (empty($emergencyPlatforms)): ?>
+                    <p class="muted">Todavía no hay plataformas creadas.</p>
+                <?php else: ?>
+                    <?php foreach ($emergencyPlatforms as $platform): ?>
+                        <div class="dialog-row">
+                            <span class="platform-dot" style="--dot-color: <?= h($platform['color']) ?>"></span>
+                            <strong><?= h($platform['name']) ?></strong>
+                            <div class="dialog-actions">
+                                <button type="button" class="ghost" data-edit-platform='<?= h(json_encode([
+                                    'id' => (int)$platform['id'],
+                                    'name' => $platform['name'],
+                                    'color' => $platform['color'],
+                                ], JSON_UNESCAPED_UNICODE)) ?>'>Editar</button>
+                                <form method="post" action="<?= h(app_url('index.php?action=delete_emergency_platform')) ?>">
+                                    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+                                    <input type="hidden" name="id" value="<?= (int)$platform['id'] ?>">
+                                    <button type="submit" class="danger ghost">Eliminar</button>
+                                </form>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </dialog>
     <?php elseif ($page === 'backup'): ?>
         <section class="panel">
             <div class="panel-header">

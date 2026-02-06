@@ -156,6 +156,13 @@ const dialog = document.getElementById('categoryDialog');
 const closeButton = document.getElementById('closeCategory');
 const accountDialog = document.getElementById('accountDialog');
 const closeAccount = document.getElementById('closeAccount');
+const platformDialog = document.getElementById('platformDialog');
+const openPlatformDialog = document.getElementById('openPlatformDialog');
+const closePlatform = document.getElementById('closePlatform');
+const platformReset = document.getElementById('platformReset');
+const platformIdInput = document.getElementById('platformId');
+const platformNameInput = document.getElementById('platformName');
+const platformColorInput = document.getElementById('platformColor');
 const copyBudgets = document.getElementById('copyBudgets');
 const budgetColumnsSelect = document.getElementById('budgetColumns');
 const budgetGrid = document.querySelector('.budget-grid');
@@ -199,6 +206,36 @@ document.querySelectorAll('[data-edit-account]').forEach((button) => {
 });
 
 closeAccount?.addEventListener('click', () => accountDialog?.close());
+
+function resetPlatformForm() {
+    if (platformIdInput) platformIdInput.value = '0';
+    if (platformNameInput) platformNameInput.value = '';
+    if (platformColorInput) platformColorInput.value = '#ffffff';
+}
+
+openPlatformDialog?.addEventListener('click', () => {
+    resetPlatformForm();
+    if (platformDialog && !platformDialog.open) {
+        platformDialog.showModal();
+    }
+});
+
+closePlatform?.addEventListener('click', () => platformDialog?.close());
+
+platformReset?.addEventListener('click', () => resetPlatformForm());
+
+document.querySelectorAll('[data-edit-platform]').forEach((button) => {
+    button.addEventListener('click', () => {
+        if (!platformDialog) return;
+        const data = JSON.parse(button.getAttribute('data-edit-platform'));
+        if (platformIdInput) platformIdInput.value = String(data.id);
+        if (platformNameInput) platformNameInput.value = data.name;
+        if (platformColorInput) platformColorInput.value = data.color;
+        if (!platformDialog.open) {
+            platformDialog.showModal();
+        }
+    });
+});
 
 copyBudgets?.addEventListener('click', (event) => {
     const form = event.currentTarget.closest('form');

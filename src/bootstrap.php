@@ -126,6 +126,27 @@ function init_db(array $config): void {
         notas TEXT,
         position INTEGER NOT NULL DEFAULT 0
     )');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS extraordinary_fund_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        snapshot_date TEXT NOT NULL,
+        amount REAL NOT NULL
+    )');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS emergency_platforms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT "#ffffff",
+        position INTEGER NOT NULL DEFAULT 0
+    )');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS emergency_fund_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        snapshot_date TEXT NOT NULL,
+        amount REAL NOT NULL,
+        platform_id INTEGER NOT NULL
+    )');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS fund_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )');
 
     if (!column_exists($pdo, 'extraordinary_expenses', 'position')) {
         $pdo->exec('ALTER TABLE extraordinary_expenses ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
